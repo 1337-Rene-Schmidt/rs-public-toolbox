@@ -22,7 +22,7 @@ A pharmacist or supply-chain professional has received a medicine package and wa
 
 1. **Given** a valid GS1-encoded identifier string, **When** the user submits it for validation, **Then** the app reports "Valid" and displays each parsed field (GTIN, expiry date, batch number, serial number) with its decoded value.
 2. **Given** a string with an incorrect GTIN check digit, **When** the user submits it, **Then** the app reports "Invalid" and highlights that the product code check digit is wrong.
-3. **Given** a string with an expiry date already in the past, **When** the user submits it, **Then** the app reports "Invalid" and indicates the package is expired.
+3. **Given** a string with an expiry date already in the past, **When** the user submits it, **Then** the app reports a warning (valid with caution) and indicates the package is expired; the identifier is not treated as structurally invalid.
 4. **Given** a string that is missing a mandatory Application Identifier (e.g., no serial number AI 21), **When** the user submits it, **Then** the app reports "Invalid" and names the missing field.
 5. **Given** an empty input field, **When** the user presses Validate, **Then** the app shows an inline error prompting for input rather than an empty result.
 
@@ -34,14 +34,14 @@ A QA engineer or packaging-line operator needs to create a test or reference ePI
 
 **Why this priority**: Generation enables practical testing and demonstration without requiring access to a live serialisation system; it is the natural companion to validation.
 
-**Independent Test**: Open the app, enter a 13-digit GTIN, a batch number, and an expiry date, press Generate, and receive a fully formed GS1 identifier string with an auto-generated serial number — without ever using the validate section.
+**Independent Test**: Open the app, enter a GTIN-13 or GTIN-14, a batch number, and an expiry date, press Generate, and receive a fully formed GS1 identifier string with an auto-generated serial number — without ever using the validate section.
 
 **Acceptance Scenarios**:
 
-1. **Given** the user has entered a valid 13-digit GTIN, a non-empty batch number, and a future expiry date, **When** they press Generate, **Then** the app outputs a complete GS1 DataMatrix string with a randomly generated serial number, and the full human-readable breakdown is shown below.
+1. **Given** the user has entered a valid GTIN-13 or GTIN-14, a non-empty batch number, and a future expiry date, **When** they press Generate, **Then** the app outputs a complete GS1 DataMatrix string with a randomly generated serial number, and the full human-readable breakdown is shown below.
 2. **Given** the user provides an invalid GTIN (wrong length or check digit), **When** they press Generate, **Then** the app highlights the GTIN field with an error message before generating anything.
 3. **Given** the user provides an expiry date in the past, **When** they press Generate, **Then** the app shows a warning but still allows generation (expiry dates on existing stock may be in the past).
-5. **Given** a successfully generated identifier, **When** the user presses **Copy bracket notation** or **Copy raw string**, **Then** the respective identifier string is copied to the clipboard and a brief confirmation toast is shown.
+4. **Given** a successfully generated identifier, **When** the user presses **Copy bracket notation** or **Copy raw string**, **Then** the respective identifier string is copied to the clipboard and a brief confirmation toast is shown.
 5. **Given** a successfully generated identifier, **When** the user presses Validate (quick-validate action on the result card), **Then** the generated string is pre-filled in the validate section and immediately validated.
 
 ---
@@ -65,7 +65,7 @@ A warehouse inspector or field pharmacist accessing the tool on a smartphone nee
 ### Edge Cases
 
 - What happens when the identifier contains FNC1 separator characters (GS character, ASCII 0x1D) in addition to human-readable AI brackets?
-- How does the system handle batch numbers or serial numbers containing special characters allowed by GS1 (alphanumeric plus `-`, `.`, `/`, `+`, `%`, `*`, `_`, `$`, ` `)?
+- How does the system handle batch numbers or serial numbers containing special characters allowed by GS1 character set 82 (alphanumeric plus `-`, `.`, `/`, `+`, `%`, `*`, `_`, ` ` and others; note `$` is **not** in GS1 character set 82)?
 - What if the GTIN is provided as GTIN-13 (13 digits) vs GTIN-14 (14 digits, padded with leading zero)?
 - What happens when the user's browser does not support the Clipboard API (older browsers, non-HTTPS)?
 - What if the user pastes a DataMatrix raw byte string (with GS separators) rather than the human-readable bracket notation?
