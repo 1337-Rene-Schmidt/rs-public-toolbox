@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ePIL Package Identifier Tool</title>
+<style>
+/* ── Reset ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Base ───────────────────────────────────────────────── */
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.container {
+  width: 100%;
+  max-width: 680px;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.header { margin-bottom: 1.5rem; }
+
+h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: -0.01em;
+}
+
+.header-sub {
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: #667085;
+  line-height: 1.4;
+}
+
+/* ── Tabs ───────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #d0d5dd;
+  margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #667085;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  min-height: 44px;
+  letter-spacing: 0.01em;
+}
+
+.tab-btn.active  { color: #2563eb; border-bottom-color: #2563eb; }
+.tab-btn:hover:not(.active) { color: #1a1a2e; }
+
+/* ── Panels ─────────────────────────────────────────────── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── Card ───────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* ── Form fields ────────────────────────────────────────── */
+.field { margin-bottom: 1rem; }
+.field:last-of-type { margin-bottom: 0; }
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 479px) {
+  .field-row { grid-template-columns: 1fr; }
+  .field-row .field { margin-bottom: 0; }
+  .field-row { gap: 1rem; }
+}
+
+label.field-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #344054;
+  margin-bottom: 0.35rem;
+}
+
+.optional-tag {
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: #9ca3af;
+  background: #f3f4f6;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+}
+
+input[type="text"],
+input[type="date"],
+textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #1a1a2e;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  min-height: 44px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 88px;
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+input[type="text"]:focus,
+input[type="date"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
+input.field-error,
+textarea.field-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.1);
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: #667085;
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+.inline-error {
+  display: none;
+  font-size: 0.78rem;
+  color: #dc2626;
+  margin-top: 0.2rem;
+  line-height: 1.3;
+}
+.inline-error.show { display: block; }
+
+/* ── Button ─────────────────────────────────────────────── */
+.btn {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  min-height: 44px;
+  letter-spacing: 0.01em;
+  margin-top: 0.25rem;
+}
+
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+
+/* ── Result card ────────────────────────────────────────── */
+.result-card {
+  display: none;
+  margin-top: 1.25rem;
+  border-radius: 10px;
+  border: 1.5px solid;
+  overflow: hidden;
+}
+.result-card.show { display: block; }
+.result-card.valid   { border-color: #6ee7b7; }
+.result-card.invalid { border-color: #fca5a5; }
+.result-card.warn    { border-color: #fcd34d; }
+
+.result-header {
+  display: flex;
+  align-items: center;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.result-card.valid   .result-header { background: #ecfdf5; color: #065f46; }
+.result-card.invalid .result-header { background: #fff1f2; color: #991b1b; }
+.result-card.warn    .result-header { background: #fffbeb; color: #92400e; }
+
+/* ── Identifier display (generate result) ───────────────── */
+.result-identifier {
+  padding: 0.9rem 1rem 0.75rem;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+}
+
+.id-bracket {
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: 0.92rem;
+  font-weight: 700;
+  word-break: break-all;
+  color: #1a1a2e;
+  line-height: 1.5;
+}
+
+.id-raw {
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: 0.75rem;
+  color: #667085;
+  word-break: break-all;
+  margin-top: 0.35rem;
+  line-height: 1.5;
+}
+
+.copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.copy-btn {
+  padding: 0.3rem 0.75rem;
+  border: 1.5px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #344054;
+  transition: border-color 0.15s, color 0.15s;
+  min-height: 36px;
+}
+.copy-btn:hover { border-color: #2563eb; color: #2563eb; }
+
+.jump-btn {
+  padding: 0.3rem 0.75rem;
+  border: 1.5px solid #2563eb;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #2563eb;
+  transition: background 0.15s;
+  min-height: 36px;
+}
+.jump-btn:hover { background: #eff6ff; }
+
+/* ── Field breakdown table ──────────────────────────────── */
+.field-breakdown { border-top: 1px solid #e5e7eb; }
+
+.bd-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) 1.4rem;
+  gap: 0.4rem 0.75rem;
+  align-items: start;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.83rem;
+}
+.bd-row:last-child { border-bottom: none; }
+
+@media (max-width: 400px) {
+  .bd-row {
+    grid-template-columns: 1fr 1.4rem;
+  }
+  .bd-cell-value { grid-column: 1; }
+}
+
+.bd-name { font-weight: 600; color: #344054; }
+.bd-ai   { font-size: 0.75rem; color: #9ca3af; margin-top: 0.1rem; }
+
+.bd-value {
+  font-family: ui-monospace, "Courier New", monospace;
+  word-break: break-all;
+  color: #1a1a2e;
+  line-height: 1.45;
+}
+.bd-decoded {
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: #667085;
+  margin-top: 0.1rem;
+}
+
+.bd-status {
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  padding-top: 0.05rem;
+}
+.bd-status.ok   { color: #059669; }
+.bd-status.err  { color: #dc2626; }
+.bd-status.warn { color: #d97706; }
+
+.bd-error {
+  grid-column: 1 / -1;
+  font-size: 0.77rem;
+  color: #dc2626;
+  line-height: 1.35;
+  padding-top: 0.1rem;
+}
+
+/* ── Toast ──────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: #fff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 100;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="header">
+    <h1>&#128230; ePIL Package Identifier Tool</h1>
+    <p class="header-sub">EU FMD · GS1 DataMatrix · AI&nbsp;01&nbsp;/&nbsp;17&nbsp;/&nbsp;10&nbsp;/&nbsp;21 · No login required</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab-btn active" role="tab" aria-selected="true"  data-tab="generate">Generate</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" data-tab="validate">Validate</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ GENERATE PANEL -->
+  <div id="panel-generate" class="panel active" role="tabpanel">
+    <div class="card">
+
+      <div class="field">
+        <label class="field-label" for="gen-gtin">GTIN-13 or GTIN-14</label>
+        <input type="text" id="gen-gtin" inputmode="numeric" autocomplete="off"
+               spellcheck="false" placeholder="e.g. 03400926006476"
+               maxlength="14">
+        <span class="field-hint">Enter 13 digits (EAN-13) or 14 digits (GTIN-14). Check digit is verified.</span>
+        <span class="inline-error" id="err-gtin" role="alert"></span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="gen-batch">Batch / lot number</label>
+          <input type="text" id="gen-batch" autocomplete="off" spellcheck="false"
+                 placeholder="e.g. AB1234" maxlength="20">
+          <span class="inline-error" id="err-batch" role="alert"></span>
+        </div>
+        <div class="field">
+          <label class="field-label" for="gen-expiry">Expiry date</label>
+          <input type="date" id="gen-expiry">
+          <span class="inline-error" id="err-expiry" role="alert"></span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="gen-serial">
+          Serial number
+          <span class="optional-tag">optional</span>
+        </label>
+        <input type="text" id="gen-serial" autocomplete="off" spellcheck="false"
+               placeholder="Leave blank to auto-generate" maxlength="20">
+        <span class="field-hint">Auto-generates a random 10-character alphanumeric serial if left blank.</span>
+        <span class="inline-error" id="err-serial" role="alert"></span>
+      </div>
+
+      <button class="btn btn-primary" id="btn-generate">Generate identifier</button>
+    </div>
+
+    <!-- Generate result -->
+    <div class="result-card" id="gen-result" aria-live="polite">
+      <div class="result-header" id="gen-result-header"></div>
+
+      <div class="result-identifier">
+        <div class="id-bracket" id="gen-bracket"></div>
+        <div class="id-raw"     id="gen-raw"></div>
+        <div class="copy-row">
+          <button class="copy-btn"  id="gen-copy-bracket">Copy bracket notation</button>
+          <button class="copy-btn"  id="gen-copy-raw">Copy raw string</button>
+          <button class="jump-btn"  id="gen-validate-btn">Validate this &#8594;</button>
+        </div>
+      </div>
+
+      <div class="field-breakdown">
+        <div class="bd-row">
+          <div><div class="bd-name">GTIN-14</div><div class="bd-ai">AI 01 · product code</div></div>
+          <div class="bd-value" id="gen-bd-gtin"></div>
+          <div class="bd-status ok" id="gen-st-gtin">&#10003;</div>
+        </div>
+        <div class="bd-row">
+          <div><div class="bd-name">Expiry date</div><div class="bd-ai">AI 17 · YYMMDD</div></div>
+          <div class="bd-value">
+            <span id="gen-bd-expiry"></span>
+            <div class="bd-decoded" id="gen-bd-expiry-dec"></div>
+          </div>
+          <div class="bd-status ok" id="gen-st-expiry">&#10003;</div>
+        </div>
+        <div class="bd-row">
+          <div><div class="bd-name">Batch / lot</div><div class="bd-ai">AI 10</div></div>
+          <div class="bd-value" id="gen-bd-batch"></div>
+          <div class="bd-status ok">&#10003;</div>
+        </div>
+        <div class="bd-row">
+          <div><div class="bd-name">Serial number</div><div class="bd-ai">AI 21</div></div>
+          <div class="bd-value">
+            <span id="gen-bd-serial"></span>
+            <div class="bd-decoded" id="gen-serial-note"></div>
+          </div>
+          <div class="bd-status ok">&#10003;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ VALIDATE PANEL -->
+  <div id="panel-validate" class="panel" role="tabpanel">
+    <div class="card">
+      <div class="field">
+        <label class="field-label" for="val-input">Identifier string</label>
+        <textarea id="val-input" autocomplete="off" spellcheck="false"
+                  placeholder="(01)03400926006476(17)260630(10)AB1234(21)SN000000001"></textarea>
+        <span class="field-hint">Paste bracket notation <code style="font-size:0.78rem">(01)&hellip;(17)&hellip;(10)&hellip;(21)&hellip;</code> or a raw GS1 string with&nbsp;&#x241D;&nbsp;separators.</span>
+      </div>
+      <button class="btn btn-primary" id="btn-validate">Validate</button>
+    </div>
+
+    <div class="result-card" id="val-result" aria-live="polite">
+      <div class="result-header" id="val-result-header"></div>
+      <div class="field-breakdown" id="val-breakdown"></div>
+    </div>
+  </div>
+
+</div><!-- /.container -->
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+/* ==========================================================
+   ALGORITHMS  (EU FMD / GS1 standard)
+   Source standard: GS1 General Specifications, EU Delegated
+   Regulation 2016/161 (Falsified Medicines Directive)
+   ========================================================== */
+
+// GS Group Separator character used as variable-length AI delimiter
+// in raw GS1 DataMatrix strings (ASCII 0x1D / FNC1)
+const GS = '\x1D';
+
+// GS1 AI encodable character set 82 — allowed in AI 10 (batch) and AI 21 (serial)
+// Covers: A-Z a-z 0-9 ! " % ( ) * + , - . / : ; < = > ? _ space
+const GS1_CHARSET = /^[A-Za-z0-9 !"%()*+,\-./:;<=>?_]+$/;
+
+// ── GTIN check digit — GS1 MOD-10 ─────────────────────────
+// Source: GS1 General Specifications §7.9 (Check Character Calculation)
+// Weights alternate 3, 1 from the rightmost non-check digit leftward.
+function _gtinCheckDigit(base) {
+  // base = all digits except the check digit (rightmost)
+  let sum = 0;
+  for (let i = 0; i < base.length; i++) {
+    const d = parseInt(base[base.length - 1 - i], 10);
+    sum += d * (i % 2 === 0 ? 3 : 1);
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+function validateGtin14(value) {
+  if (!/^\d{14}$/.test(value))
+    return { ok: false, error: 'Must be exactly 14 digits' };
+  const expected = _gtinCheckDigit(value.slice(0, 13));
+  const actual   = parseInt(value[13], 10);
+  if (expected !== actual)
+    return { ok: false, error: `Check digit wrong: expected ${expected}, got ${actual}` };
+  return { ok: true };
+}
+
+// Accept GTIN-13 (pad to 14) or GTIN-14 as-is; return null for other lengths.
+function normalizeGtin(input) {
+  const d = input.replace(/\D/g, '');
+  if (d.length === 13) return '0' + d;
+  if (d.length === 14) return d;
+  return null;
+}
+
+// ── Expiry date — YYMMDD ───────────────────────────────────
+// Source: GS1 General Specifications §3.4 (AI 17)
+// Two-digit year rule: 00–49 → 2000–2049, 50–99 → 1950–1999.
+// DD = 00 is a GS1 convention meaning "last day of the month".
+function parseExpiry(yymmdd) {
+  if (!/^\d{6}$/.test(yymmdd))
+    return { ok: false, error: 'Must be 6 digits in YYMMDD format' };
+
+  const yy   = parseInt(yymmdd.slice(0, 2), 10);
+  const mm   = parseInt(yymmdd.slice(2, 4), 10);
+  const dd   = parseInt(yymmdd.slice(4, 6), 10);
+  const year = yy <= 49 ? 2000 + yy : 1900 + yy;
+
+  if (mm < 1 || mm > 12)
+    return { ok: false, error: `Month ${mm} is out of range (01–12)` };
+
+  let resolvedDay;
+  if (dd === 0) {
+    // GS1 DD=00 → last day of the month
+    resolvedDay = new Date(year, mm, 0).getDate();
+  } else {
+    const d = new Date(year, mm - 1, dd);
+    if (d.getFullYear() !== year || d.getMonth() !== mm - 1 || d.getDate() !== dd)
+      return { ok: false, error: `${yymmdd} is not a valid calendar date` };
+    resolvedDay = dd;
+  }
+
+  const expDate = new Date(year, mm - 1, resolvedDay);
+  const expired = expDate < new Date();
+  const iso     = `${year}-${String(mm).padStart(2, '0')}-${String(resolvedDay).padStart(2, '0')}`;
+  const display = iso + (dd === 0 ? ' (last day of month)' : '');
+
+  return { ok: true, display, iso, expired };
+}
+
+// ── GS1 identifier parser ──────────────────────────────────
+// Supports:
+//   ① Bracket notation: (01)12345678901231(17)260630(10)LOT1(21)SN001
+//   ② Raw GS1 format:   0112345678901231172606301LOT1\x1D21SN001
+//     Fixed-length AIs (01 → 14 chars, 17 → 6 chars) need no GS delimiter.
+//     Variable-length AIs (10, 21) are terminated by GS or end-of-string.
+function parseGs1(input) {
+  const s = input.trim();
+
+  // ① Bracket notation
+  if (s.includes('(')) {
+    const re     = /\((\d{2,4})\)([^(]*)/g;
+    const fields = {};
+    let m;
+    while ((m = re.exec(s)) !== null) {
+      // Strip any trailing GS chars that may have been pasted in
+      fields[m[1]] = m[2].replace(/[\x1D]+$/, '').trimEnd();
+    }
+    if (Object.keys(fields).length > 0) return { fields, format: 'bracket' };
+  }
+
+  // ② Raw format — attempt fixed-order FMD parse: 01(14) 17(6) 10(var) 21(var)
+  const raw    = s.replace(/\s/g, ''); // preserve GS but remove whitespace
+  const fields = {};
+  let p = 0;
+
+  // Strip optional GS1 symbology identifier prefix (e.g. "]C1", "]d2")
+  if (raw[p] === ']') p += 3;
+  // Strip leading GS if present
+  if (raw[p] === GS) p++;
+
+  const take = (ai, len) => {
+    if (raw.slice(p, p + ai.length) !== ai) return false;
+    fields[ai] = raw.slice(p + ai.length, p + ai.length + len);
+    p += ai.length + len;
+    return true;
+  };
+  const takeVar = (ai) => {
+    if (raw.slice(p, p + ai.length) !== ai) return false;
+    p += ai.length;
+    let v = '';
+    while (p < raw.length && raw[p] !== GS) v += raw[p++];
+    if (p < raw.length && raw[p] === GS) p++; // consume separator
+    fields[ai] = v;
+    return true;
+  };
+
+  take('01', 14);
+  take('17', 6);
+  takeVar('10');
+  takeVar('21');
+
+  if (Object.keys(fields).length > 0) return { fields, format: 'raw' };
+
+  return {
+    fields: {},
+    format: 'unknown',
+    error: 'Unrecognised format — expected bracket notation e.g. (01)…(17)…(10)…(21)…'
+  };
+}
+
+// ── Full ePIL identifier validation ───────────────────────
+// Returns { ok, warn, findings[] } where warn = valid but expired.
+function validateEpil(input) {
+  if (!input.trim()) return null;
+
+  const parsed = parseGs1(input.trim());
+  if (parsed.error) {
+    return { ok: false, warn: false, findings: [{ field: 'Format', ai: '', ok: false, value: '', error: parsed.error }] };
+  }
+
+  const { fields } = parsed;
+  const findings = [];
+  let ok = true;
+
+  // AI 01 — GTIN-14 ────────────────────────────────────────
+  if (fields['01'] !== undefined) {
+    const r = validateGtin14(fields['01']);
+    findings.push({ field: 'GTIN-14', ai: 'AI 01', ok: r.ok, value: fields['01'], error: r.error });
+    if (!r.ok) ok = false;
+  } else {
+    findings.push({ field: 'GTIN-14', ai: 'AI 01', ok: false, value: '', error: 'Missing mandatory field (AI 01)' });
+    ok = false;
+  }
+
+  // AI 17 — Expiry date ────────────────────────────────────
+  if (fields['17'] !== undefined) {
+    const r = parseExpiry(fields['17']);
+    findings.push({
+      field:   'Expiry date',
+      ai:      'AI 17',
+      ok:      r.ok,
+      value:   fields['17'],
+      decoded: r.ok ? r.display : undefined,
+      warn:    r.ok && r.expired,
+      error:   r.error || (r.ok && r.expired ? 'Package is expired' : undefined)
+    });
+    if (!r.ok) ok = false;
+  } else {
+    findings.push({ field: 'Expiry date', ai: 'AI 17', ok: false, value: '', error: 'Missing mandatory field (AI 17)' });
+    ok = false;
+  }
+
+  // AI 10 — Batch / lot ────────────────────────────────────
+  if (fields['10'] !== undefined) {
+    const v = fields['10'];
+    let error;
+    if (v.length < 1 || v.length > 20) error = `Length ${v.length} out of range (1–20 characters)`;
+    else if (!GS1_CHARSET.test(v))      error = 'Contains characters outside GS1 AI encodable charset 82';
+    findings.push({ field: 'Batch / lot', ai: 'AI 10', ok: !error, value: v, error });
+    if (error) ok = false;
+  } else {
+    findings.push({ field: 'Batch / lot', ai: 'AI 10', ok: false, value: '', error: 'Missing mandatory field (AI 10)' });
+    ok = false;
+  }
+
+  // AI 21 — Serial number ──────────────────────────────────
+  if (fields['21'] !== undefined) {
+    const v = fields['21'];
+    let error;
+    if (v.length < 1 || v.length > 20) error = `Length ${v.length} out of range (1–20 characters)`;
+    else if (!GS1_CHARSET.test(v))      error = 'Contains characters outside GS1 AI encodable charset 82';
+    findings.push({ field: 'Serial number', ai: 'AI 21', ok: !error, value: v, error });
+    if (error) ok = false;
+  } else {
+    findings.push({ field: 'Serial number', ai: 'AI 21', ok: false, value: '', error: 'Missing mandatory field (AI 21)' });
+    ok = false;
+  }
+
+  const hasExpiredWarn = findings.some(f => f.warn);
+  return { ok, warn: ok && hasExpiredWarn, findings };
+}
+
+// ── Serial number auto-generator ──────────────────────────
+// 10-character uppercase alphanumeric using crypto.getRandomValues.
+function generateSerial() {
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const buf   = new Uint8Array(10);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, b => CHARS[b % CHARS.length]).join('');
+}
+
+/* ==========================================================
+   UI LOGIC
+   ========================================================== */
+
+// ── Toast notification ─────────────────────────────────────
+let _toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── Clipboard copy ─────────────────────────────────────────
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => _fallbackCopy(text));
+  } else {
+    _fallbackCopy(text);
+  }
+  showToast('Copied to clipboard');
+}
+
+function _fallbackCopy(text) {
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+  document.body.appendChild(el);
+  el.select();
+  try { document.execCommand('copy'); } catch (_) {}
+  document.body.removeChild(el);
+}
+
+// ── Tab switching ──────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Field-level error helper ───────────────────────────────
+function setFieldError(inputEl, errEl, msg) {
+  if (msg) {
+    inputEl.classList.add('field-error');
+    errEl.textContent = msg;
+    errEl.classList.add('show');
+  } else {
+    inputEl.classList.remove('field-error');
+    errEl.classList.remove('show');
+  }
+  return !!msg;
+}
+
+// ── Set default expiry to one year from today ──────────────
+(function () {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  document.getElementById('gen-expiry').value = d.toISOString().slice(0, 10);
+})();
+
+// ── GENERATE ──────────────────────────────────────────────
+document.getElementById('btn-generate').addEventListener('click', () => {
+  const gtinEl   = document.getElementById('gen-gtin');
+  const batchEl  = document.getElementById('gen-batch');
+  const expiryEl = document.getElementById('gen-expiry');
+  const serialEl = document.getElementById('gen-serial');
+
+  let errors = false;
+
+  // Validate GTIN
+  const gtin14 = normalizeGtin(gtinEl.value.trim());
+  if (!gtinEl.value.trim()) {
+    errors = setFieldError(gtinEl, document.getElementById('err-gtin'), 'GTIN-13 or GTIN-14 is required') || errors;
+  } else if (!gtin14) {
+    errors = setFieldError(gtinEl, document.getElementById('err-gtin'), 'Must be 13 or 14 digits') || errors;
+  } else {
+    const r = validateGtin14(gtin14);
+    errors = setFieldError(gtinEl, document.getElementById('err-gtin'), r.ok ? null : r.error) || errors;
+  }
+
+  // Validate batch
+  const batch = batchEl.value.trim();
+  if (!batch) {
+    errors = setFieldError(batchEl, document.getElementById('err-batch'), 'Batch number is required') || errors;
+  } else if (batch.length > 20) {
+    errors = setFieldError(batchEl, document.getElementById('err-batch'), 'Maximum 20 characters') || errors;
+  } else if (!GS1_CHARSET.test(batch)) {
+    errors = setFieldError(batchEl, document.getElementById('err-batch'), 'Contains characters outside GS1 charset') || errors;
+  } else {
+    setFieldError(batchEl, document.getElementById('err-batch'), null);
+  }
+
+  // Validate expiry
+  let yymmdd = '';
+  if (!expiryEl.value) {
+    errors = setFieldError(expiryEl, document.getElementById('err-expiry'), 'Expiry date is required') || errors;
+  } else {
+    const p = expiryEl.value.split('-');
+    yymmdd = p[0].slice(-2) + p[1] + p[2];
+    setFieldError(expiryEl, document.getElementById('err-expiry'), null);
+  }
+
+  // Validate serial (optional)
+  const serialRaw = serialEl.value.trim();
+  let serial      = serialRaw;
+  if (serialRaw) {
+    if (serialRaw.length > 20) {
+      errors = setFieldError(serialEl, document.getElementById('err-serial'), 'Maximum 20 characters') || errors;
+    } else if (!GS1_CHARSET.test(serialRaw)) {
+      errors = setFieldError(serialEl, document.getElementById('err-serial'), 'Contains characters outside GS1 charset') || errors;
+    } else {
+      setFieldError(serialEl, document.getElementById('err-serial'), null);
+    }
+  } else {
+    setFieldError(serialEl, document.getElementById('err-serial'), null);
+    serial = generateSerial();
+  }
+
+  if (errors || !gtin14 || !yymmdd) return;
+
+  // Build identifier strings
+  const bracket = `(01)${gtin14}(17)${yymmdd}(10)${batch}(21)${serial}`;
+  const rawStr  = `01${gtin14}17${yymmdd}10${batch}${GS}21${serial}`;
+
+  // Check expiry for warning flag
+  const expiryResult = parseExpiry(yymmdd);
+  const isExpired    = expiryResult.ok && expiryResult.expired;
+
+  // Populate result card
+  const card = document.getElementById('gen-result');
+  card.className = 'result-card show ' + (isExpired ? 'warn' : 'valid');
+  document.getElementById('gen-result-header').textContent =
+    isExpired ? '\u26A0 Generated \u2014 expiry date is in the past' : '\u2713 Identifier generated';
+
+  document.getElementById('gen-bracket').textContent = bracket;
+  document.getElementById('gen-raw').textContent     = 'Raw: ' + rawStr.replace(GS, '<GS>');
+
+  document.getElementById('gen-copy-bracket').dataset.copy = bracket;
+  document.getElementById('gen-copy-raw').dataset.copy     = rawStr;
+
+  // Field breakdown
+  document.getElementById('gen-bd-gtin').textContent         = gtin14;
+  document.getElementById('gen-bd-expiry').textContent       = yymmdd;
+  document.getElementById('gen-bd-expiry-dec').textContent   = expiryResult.display || '';
+  document.getElementById('gen-bd-batch').textContent        = batch;
+  document.getElementById('gen-bd-serial').textContent       = serial;
+  document.getElementById('gen-serial-note').textContent     = serialRaw ? '' : '(auto-generated)';
+
+  // Update expiry status icon
+  const expiryStatus = document.getElementById('gen-st-expiry');
+  if (isExpired) {
+    expiryStatus.className  = 'bd-status warn';
+    expiryStatus.textContent = '\u26A0';
+  } else {
+    expiryStatus.className  = 'bd-status ok';
+    expiryStatus.textContent = '\u2713';
+  }
+
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+document.getElementById('gen-copy-bracket').addEventListener('click', function () {
+  if (this.dataset.copy) copyText(this.dataset.copy);
+});
+document.getElementById('gen-copy-raw').addEventListener('click', function () {
+  if (this.dataset.copy) copyText(this.dataset.copy);
+});
+
+// "Validate this →" button — prefills validate tab and runs validation
+document.getElementById('gen-validate-btn').addEventListener('click', () => {
+  const bracket = document.getElementById('gen-bracket').textContent;
+  if (!bracket) return;
+
+  // Switch to validate tab
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const valTab = document.querySelector('[data-tab="validate"]');
+  valTab.classList.add('active');
+  valTab.setAttribute('aria-selected', 'true');
+  document.getElementById('panel-validate').classList.add('active');
+
+  document.getElementById('val-input').value = bracket;
+  runValidation();
+  document.getElementById('val-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+// ── VALIDATE ──────────────────────────────────────────────
+function runValidation() {
+  const input    = document.getElementById('val-input').value;
+  const card     = document.getElementById('val-result');
+  const headerEl = document.getElementById('val-result-header');
+  const tbody    = document.getElementById('val-breakdown');
+
+  if (!input.trim()) {
+    card.className        = 'result-card show invalid';
+    headerEl.textContent  = '\u2717 Please enter an identifier string';
+    tbody.innerHTML       = '';
+    return;
+  }
+
+  const result = validateEpil(input);
+
+  if (result.warn) {
+    card.className       = 'result-card show warn';
+    headerEl.textContent = '\u26A0 Valid \u2014 but note the expiry warning below';
+  } else if (result.ok) {
+    card.className       = 'result-card show valid';
+    headerEl.textContent = '\u2713 Identifier is valid';
+  } else {
+    card.className       = 'result-card show invalid';
+    headerEl.textContent = '\u2717 Identifier is invalid';
+  }
+
+  // Build field breakdown rows
+  tbody.innerHTML = '';
+  for (const f of result.findings) {
+    const row = document.createElement('div');
+    row.className = 'bd-row';
+
+    // Left: field name + AI label
+    const nameCell = document.createElement('div');
+    nameCell.innerHTML =
+      `<div class="bd-name">${f.field}</div>` +
+      `<div class="bd-ai">${f.ai}</div>`;
+
+    // Middle: raw value + decoded value
+    const valCell  = document.createElement('div');
+    valCell.className = 'bd-cell-value';
+    const rawSpan  = document.createElement('div');
+    rawSpan.className = 'bd-value';
+    rawSpan.textContent = f.value || '\u2014';
+    valCell.appendChild(rawSpan);
+    if (f.decoded) {
+      const dec = document.createElement('div');
+      dec.className   = 'bd-decoded';
+      dec.textContent = f.decoded;
+      valCell.appendChild(dec);
+    }
+
+    // Right: status icon
+    const statusCell = document.createElement('div');
+    statusCell.className = 'bd-status ' + (f.ok ? (f.warn ? 'warn' : 'ok') : 'err');
+    statusCell.textContent = f.ok ? (f.warn ? '\u26A0' : '\u2713') : '\u2717';
+
+    row.appendChild(nameCell);
+    row.appendChild(valCell);
+    row.appendChild(statusCell);
+
+    // Error text (spans full row)
+    if (f.error) {
+      const errDiv = document.createElement('div');
+      errDiv.className   = 'bd-error';
+      errDiv.textContent = f.error;
+      row.appendChild(errDiv);
+    }
+
+    tbody.appendChild(row);
+  }
+}
+
+document.getElementById('btn-validate').addEventListener('click', runValidation);
+
+// Allow Shift+Enter or Enter in the textarea to trigger validation
+document.getElementById('val-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runValidation(); }
+});
+</script>
+</body>
+</html>
