@@ -41,7 +41,7 @@ A QA engineer or packaging-line operator needs to create a test or reference ePI
 1. **Given** the user has entered a valid 13-digit GTIN, a non-empty batch number, and a future expiry date, **When** they press Generate, **Then** the app outputs a complete GS1 DataMatrix string with a randomly generated serial number, and the full human-readable breakdown is shown below.
 2. **Given** the user provides an invalid GTIN (wrong length or check digit), **When** they press Generate, **Then** the app highlights the GTIN field with an error message before generating anything.
 3. **Given** the user provides an expiry date in the past, **When** they press Generate, **Then** the app shows a warning but still allows generation (expiry dates on existing stock may be in the past).
-4. **Given** a successfully generated identifier, **When** the user presses Copy, **Then** the full identifier string is copied to the clipboard and a brief confirmation toast is shown.
+5. **Given** a successfully generated identifier, **When** the user presses **Copy bracket notation** or **Copy raw string**, **Then** the respective identifier string is copied to the clipboard and a brief confirmation toast is shown.
 5. **Given** a successfully generated identifier, **When** the user presses Validate (quick-validate action on the result card), **Then** the generated string is pre-filled in the validate section and immediately validated.
 
 ---
@@ -56,7 +56,7 @@ A warehouse inspector or field pharmacist accessing the tool on a smartphone nee
 
 **Acceptance Scenarios**:
 
-1. **Given** the app is loaded on a 375 px-wide viewport, **When** any section is rendered, **Then** all controls are visible without horizontal scrolling and all tap targets are at least 44 × 44 CSS pixels.
+1. **Given** the app is loaded on a 375 px-wide viewport, **When** any section is rendered, **Then** all controls are visible without horizontal scrolling; all primary interactive elements (form inputs, primary action buttons, tab controls) are at least 44 × 44 CSS pixels; secondary action chips within result cards (copy-format and quick-action buttons) are at least 36 px tall.
 2. **Given** a generated identifier string, **When** the user taps Copy on a mobile device, **Then** the clipboard API (or graceful fallback) copies the string and shows a confirmation.
 3. **Given** the user navigates between Generate and Validate sections on mobile, **When** switching tabs or sections, **Then** the transition is instantaneous and no layout shift breaks the visible content.
 
@@ -76,14 +76,14 @@ A warehouse inspector or field pharmacist accessing the tool on a smartphone nee
 
 - **FR-001**: The system MUST accept a GS1 DataMatrix identifier string (human-readable bracket notation or FNC1-delimited raw format) and determine whether it is structurally valid.
 - **FR-002**: Validation MUST check: GTIN-13/14 check digit (Luhn/mod-10), all four mandatory Application Identifiers present (AI 01, AI 17, AI 10, AI 21), expiry date is a valid calendar date in YYMMDD format, serial number length is 1–20 characters, batch number length is 1–20 characters.
-- **FR-003**: The system MUST allow a user to enter a GTIN-13, batch number, expiry date (via date picker or text field), and an optional serial number to generate a complete GS1 DataMatrix identifier string; if no serial number is provided the system MUST auto-generate a random 10-character alphanumeric serial.
-- **FR-004**: The system MUST display the generated or validated identifier in human-readable GS1 bracket notation and as a plain string ready for DataMatrix encoding.
-- **FR-005**: The system MUST provide a one-tap/one-click copy-to-clipboard action for any generated or validated identifier string.
+- **FR-003**: The system MUST allow a user to enter a GTIN-13 or GTIN-14, batch number, expiry date (via date picker or text field), and an optional serial number to generate a complete GS1 DataMatrix identifier string; if no serial number is provided the system MUST auto-generate a random 10-character alphanumeric serial.
+- **FR-004**: For a generated identifier, the system MUST display it in both human-readable GS1 bracket notation and as a plain string ready for DataMatrix encoding. For a validated identifier, the system MUST display a field-level breakdown (field name, AI, raw value, decoded value where applicable) rather than repeating the full identifier string.
+- **FR-005**: The system MUST provide one-tap/one-click copy-to-clipboard actions for generated identifier strings in both bracket notation and raw format. Validation results do not require a dedicated copy action, as the original identifier string remains available in the input field.
 - **FR-006**: The system MUST display field-level validation feedback (per-field pass/fail with descriptive error text) rather than a single pass/fail flag.
 - **FR-007**: The system MUST work entirely in the browser with no server-side requests, no external libraries, and no build step required; a single HTML file opened locally or served statically MUST be fully functional.
-- **FR-008**: The layout MUST be responsive and usable on viewports as narrow as 320 px, with all interactive elements having a minimum touch-target size of 44 × 44 CSS pixels.
+- **FR-008**: The layout MUST be responsive and usable on viewports as narrow as 320 px. Primary interactive elements (form inputs, primary action buttons, tab controls) MUST have a minimum touch-target size of 44 × 44 CSS pixels. Secondary action chips within result cards (copy-format buttons, quick-action buttons) MAY use a reduced minimum height of 36 px.
 - **FR-009**: The system MUST NOT require user authentication or any login step.
-- **FR-010**: The system MUST accept GTIN-13 input and internally convert it to GTIN-14 by prepending a leading zero for encoding, and MUST display both forms in the output.
+- **FR-010**: The system MUST accept GTIN-13 input and internally convert it to GTIN-14 by prepending a leading zero for encoding. The system MUST display the normalised GTIN-14 in the output; a separate GTIN-13 representation is not required.
 
 ### Key Entities
 
