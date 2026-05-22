@@ -1,271 +1,340 @@
 # Implementation Plan: Package Identifier Tool
 
-**Source file**: `identifier-tool.html`
-
-**Reverse-engineered**: 2026-05-21
-
+**Feature**: `001-epil-pkg-identifier`
+**Spec**: [spec.md](spec.md)
+**Created**: 2026-05-21
 **Status**: Draft
 
 ---
 
 ## Overview
 
-A single self-contained HTML5 SPA for generating and validating five pharmaceutical package identifier formats. No external dependencies, no build step. Delivered as one `identifier-tool.html` file with embedded CSS and JavaScript.
+A single self-contained `index.html` SPA that generates and validates five identifier types entirely in the browser: PZN, NTIN, GTIN, PPN, and PCID. The UI provides exactly two top-level modes, Generate and Validate, plus additional embedded-PZN inspection for NTIN and PPN.
+
+**Requirements covered**: FR-001 – FR-052
+**User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN)
 
 ---
 
-## Supported Identifier Types
-
-| Type | Full name | Structure |
-|------|-----------|-----------|
-| PZN  | Pharmazentralnummer | 8 digits |
-| NTIN | National Trade Item Number | 13 digits (GS1 DE prefix + PZN + check) |
-| GTIN | Global Trade Item Number | 8 / 12 / 13 / 14 digits |
-| PPN  | Pharmacy Product Number | `9N` + 12 digits |
-| PCID | Packaged Medicinal Product ID | UUID (v1–5) |
-
----
-
-## Phase 1 — Core Algorithms
-
-All logic is pure JavaScript with no DOM dependencies so it can be unit-tested in isolation.
-
-### 1.1 PZN — Pharmazentralnummer
-
-**Validation**
-
-1. Reject if input is not exactly 8 digits.
-2. Reject dummy values: `00000000`, `22222222`, `33333333`, `44444444`.
-3. Compute check digit over the first 7 digits using weights `[1, 2, 3, 4, 5, 6, 7]`:
-   ```
-   sum = Σ digit[i] × weight[i]   (i = 0..6)
-   cd  = sum % 11
-   ```
-4. Reject if `cd === 10` (slot not allocated by IFAH).
-5. Valid if `cd === digit[7]`.
-
-**Generation**
-
-- Use rejection sampling: draw a random 7-digit base, compute check digit, discard if `cd === 10` or the resulting 8-digit string is a dummy value.
-- For *invalid* mode: add 1 to the check digit modulo 10 before appending (guarantees wrong check digit without producing `cd === 10`).
-
----
-
-### 1.2 GTIN — Global Trade Item Number
-
-**Validation**
-
-1. Strip non-digit characters.
-2. Reject if length is not in `{8, 12, 13, 14}`.
-3. Compute GS1 MOD-10 check digit over all digits except the last:
-   ```
-   For i = 0 to len-2 (right-to-left indexing from position 0):
-     weight = 3 if i is even, else 1
-     sum   += digit[len-2-i] × weight
-   cd = (10 − (sum % 10)) % 10
-   ```
-4. Valid if `cd === last digit`.
-
-**Generation**
-
-- Generate a random 13-digit base, compute check digit, append to form GTIN-14.
-- For *invalid* mode: add 1 to check digit modulo 10.
-
----
-
-### 1.3 NTIN — National Trade Item Number
-
-**Structure**
+## Dependency order
 
 ```
-[4150 (4 digits)][PZN (8 digits)][MOD-10 check (1 digit)]  =  13 digits total
+Phase 1 — Algorithm library
+    ↓
+Phase 2 — HTML shell and controls
+    ↓
+Phase 3 — Styling and result states
+    ↓
+Phase 4 — Generate flow
+    ↓
+Phase 5 — Validate flow
+    ↓
+Phase 6 — Embedded PZN inspection
+    ↓
+Phase 7 — Clipboard and interaction polish
 ```
-
-**Validation**
-
-1. Strip non-digit characters; reject if length ≠ 13.
-2. Apply GTIN MOD-10 validation (NTIN is a GTIN-13).
-
-**Generation**
-
-- Base = `'4150'` + either a freshly generated valid PZN (if *embed PZN* is checked) or a random 8-digit string.
-- Compute MOD-10 check digit over the 12-digit base; append.
-- For *invalid* mode: add 1 to check digit modulo 10.
-
-**Embedded PZN extraction**
-
-```
-pzn = digits.slice(4, 12)
-```
-After extraction, validate the extracted value as a PZN.
 
 ---
 
-### 1.4 PPN — Pharmacy Product Number
+## Phase 1 — Algorithm Library
 
-**Structure**
+All functions in this phase are pure JavaScript with no DOM dependency. They should be directly callable in the browser console.
 
-```
-9N[IFA PRA code (2 digits)][PZN (8 digits)][MOD-97 check (2 digits)]  =  14 chars total
-```
+### T-1.1 · PZN algorithm pair
+*Satisfies: FR-021, FR-022, FR-023, FR-024, FR-025*
 
-**Validation**
+| Sub-task | Detail |
+|----------|--------|
+| `_pznRawCheck(base7)` | Multiply the first 7 digits by weights `1..7`, sum, and return `sum % 11`. |
+| `validatePzn(value)` | Require exactly 8 digits, reject the dummy set, reject computed check digit `10`, and compare the final digit to the computed result. |
+| `generatePzn(wantInvalid)` | Create a random 7-digit base, compute the check digit, and optionally corrupt it by shifting `+1 mod 10`. |
 
-1. Strip leading `9N` if present.
-2. Reject if the remaining string is not exactly 12 digits.
-3. Compute MOD-97 check over the first 10 digits:
-   ```
-   multiplier = 1
-   sum = 0
-   for each char in digits[0..9]:
-     multiplier++                   // starts at 2 for the first digit
-     sum += charCodeAt(char) × multiplier
-   cd = sum % 97
-   ```
-4. Valid if `cd === parseInt(digits[10..11])`.
-
-**Generation**
-
-- `base10 = '11'` (IFA PRA company code) + either a valid PZN or a random 8-digit string.
-- Compute MOD-97 check; zero-pad to 2 digits; prepend `9N`.
-- For *invalid* mode: add 1 to check digit modulo 97.
-
-**Embedded PZN extraction**
-
-```
-// After stripping '9N':
-pzn = digits.slice(2, 10)
-```
-After extraction, validate the extracted value as a PZN.
+**Done when**: Valid issued-style PZNs pass; the dummy values fail; invalid generation produces a value that fails `validatePzn`.
 
 ---
 
-### 1.5 PCID — Packaged Medicinal Product ID
+### T-1.2 · GTIN algorithm pair
+*Satisfies: FR-026, FR-027, FR-028, FR-029, FR-030*
 
-**Validation**
+| Sub-task | Detail |
+|----------|--------|
+| `_gtinCheck(base)` | Apply GS1 MOD-10 with alternating weights `3, 1` from right to left across the body digits. |
+| `validateGtin(value)` | Strip non-digits, require length in `{8, 12, 13, 14}`, compute the expected check digit, and compare against the final digit. |
+| `generateGtin(wantInvalid)` | Create a 13-digit random base, compute the check digit, and return a 14-digit GTIN; optionally corrupt the digit by shifting `+1 mod 10`. |
 
-- Match against the UUID v1–5 regex:
-  ```
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-  ```
-
-**Generation**
-
-- Use `crypto.randomUUID()` when available (modern browsers).
-- Fallback: manual UUID v4 construction using `Math.random()`.
-- *Invalid* generation is not supported — any structurally valid UUID is a valid PCID; the "generate invalid" option is disabled for this type.
+**Done when**: `validateGtin('03400926006476')` is true; changing the last digit makes it false; generated invalid output fails validation.
 
 ---
 
-## Phase 2 — UI Shell
+### T-1.3 · NTIN algorithm pair
+*Satisfies: FR-031, FR-032, FR-033, FR-034, FR-035, FR-036*
 
-Build the static HTML/CSS skeleton before wiring any JavaScript.
+| Sub-task | Detail |
+|----------|--------|
+| `validateNtin(value)` | Strip non-digits, require exactly 13 digits, then delegate to `validateGtin`. |
+| `generateNtin(wantInvalid, embedPzn)` | Build `4150 + inner + check`, where `inner` is either a valid generated PZN or a random 8-digit number. |
+| `extractPznFromNtin(value)` | Strip non-digits and return digits `slice(4, 12)` when the value is 13 digits; otherwise return `null`. |
 
-### 2.1 Layout
-
-- Single-column, centred, max-width 660 px.
-- Body background `#f0f2f5`; card background `#fff`; rounded corners (12 px).
-- System font stack; no web fonts.
-
-### 2.2 Tab switcher
-
-- Two tabs: **Generate** and **Validate**.
-- Active tab has a solid bottom border (`#2563eb`); inactive tabs have a transparent bottom border.
-- Clicking a tab hides all panels and shows the matching panel via `display: none / block`.
-
-### 2.3 Shared result banner
-
-Two states: `success` (green) and `error` (red), toggled by adding the respective class. Displays:
-- **result-value**: monospace, bold, word-break enabled.
-- **result-label**: small descriptive text (`✓ / ✗ TYPE is structurally valid/invalid`).
+**Done when**: Generated valid NTINs pass validation; generated invalid NTINs fail; extracted embedded PZN matches the inner 8-digit segment.
 
 ---
 
-## Phase 3 — Generate Panel
+### T-1.4 · PPN algorithm pair
+*Satisfies: FR-037, FR-038, FR-039, FR-040, FR-041, FR-042, FR-043*
 
-### 3.1 Identifier type selector
+| Sub-task | Detail |
+|----------|--------|
+| `_ppnCheck(base10)` | Compute MOD-97 over the first 10 digits using character codes and multipliers `2..11`. |
+| `validatePpn(value)` | Remove an optional `9N` prefix, require exactly 12 digits, and compare the computed 2-digit checksum with the trailing digits. |
+| `generatePpn(wantInvalid, embedPzn)` | Build `9N + 11 + inner + checksum`, where `inner` is either a valid generated PZN or a random 8-digit number. |
+| `extractPznFromPpn(value)` | Remove an optional `9N` prefix, then return digits `slice(2, 10)` when the stripped value is 12 digits; otherwise return `null`. |
 
-- `<select>` with options: PZN, NTIN, GTIN, PPN, PCID.
-- `change` event triggers `syncGenOptions()` to show/hide conditional UI.
-
-### 3.2 Options panel
-
-A bordered checkbox group; shown beneath the type selector.
-
-| Option | Shown for | Notes |
-|--------|-----------|-------|
-| Embed valid PZN | NTIN, PPN | Hidden for other types; checked by default |
-| Generate invalid | All except PCID | Disabled + unchecked for PCID |
-
-`syncGenOptions()` logic:
-1. If type is `ntin` or `ppn`, show "Embed PZN" row; otherwise hide it.
-2. If type is `pcid`, disable the "Generate invalid" checkbox and clear it; otherwise re-enable.
-
-### 3.3 Generate button
-
-On click:
-1. Read type, wantInvalid, embedPzn from the form.
-2. Dispatch to the matching generation function.
-3. Populate the result banner with the generated value and a descriptive label.
-4. Store the value in `dataset.copy` on the copy button.
-
-### 3.4 Copy button
-
-- Calls `navigator.clipboard.writeText()`.
-- On success, briefly changes label to "Copied!" for 1.5 s then reverts to "Copy".
-- No error handling needed — the button is only present when a value has been generated.
+**Done when**: Generated valid PPNs pass validation; generated invalid PPNs fail; embedded PZN extraction yields the 8-digit inner payload.
 
 ---
 
-## Phase 4 — Validate Panel
+### T-1.5 · PCID algorithm pair
+*Satisfies: FR-044, FR-045, FR-046*
 
-### 4.1 Identifier type selector
+| Sub-task | Detail |
+|----------|--------|
+| `generatePcid()` | Prefer `crypto.randomUUID()` and fall back to an internal UUID-v4-style template when unavailable. |
+| `validatePcid(value)` | Validate against the RFC 4122 versions `1..5` regex. |
 
-Identical select control to the generate panel (independent state).
-
-### 4.2 Text input
-
-- Plain `<input type="text">`.
-- `keydown` listener: trigger validation on **Enter**.
-
-### 4.3 Validate button
-
-On click (or Enter):
-1. Guard: if input is empty, show error banner "Please enter an identifier value."
-2. Dispatch to the matching validation function.
-3. Show success or error banner with `✓/✗ TYPE is structurally valid/invalid`.
-4. If type is `ntin` or `ppn`, append an embedded-PZN sub-result block.
-
-### 4.4 Embedded PZN sub-result
-
-A smaller bordered block appended inside the result banner:
-- Extract the PZN using the type-specific extractor.
-- Validate the extracted PZN.
-- Show `success` (green), `error` (red), or `warn` (amber if extraction failed) state.
-- Display `Embedded PZN: <value> — ✓/✗ valid/invalid`.
+**Done when**: Generated PCIDs match validation; there is no path that produces a deliberately invalid PCID.
 
 ---
 
-## Phase 5 — Integration & Edge Cases
+## Phase 2 — HTML Shell And Controls
 
-| Concern | Handling |
-|---------|----------|
-| Empty generate result container | Hide `.result` div by default (`display: none`); add `.show` class only after generation |
-| PCID "invalid" state | Disable checkbox, prevent invalid generation path entirely |
-| NTIN/PPN embed-PZN toggle | `row-embed-pzn` row hidden by default; shown only when type is `ntin` or `ppn` |
-| Clipboard API unavailable | `navigator.clipboard?.writeText(v).catch(() => {})` — silent fail (acceptable given modern browser targets) |
-| Non-digit characters in GTIN/NTIN | Strip with `.replace(/\D/g, '')` before length/check-digit tests |
+Write the full markup in a single document with inline CSS and JavaScript only.
+
+### T-2.1 · Document shell
+*Satisfies: FR-001, FR-047, FR-048, FR-049*
+
+- `<!DOCTYPE html>`, `lang="en"`, `charset="UTF-8"`, and a mobile viewport meta tag.
+- Page title `Package Identifier Tool`.
+- One `.container` wrapping the header, tab controls, and both panels.
+
+### T-2.2 · Tab navigation
+*Satisfies: FR-001, FR-052*
+
+- Two tab buttons labelled `Generate` and `Validate`.
+- Two corresponding panels, with Generate active on initial load.
+
+### T-2.3 · Generate panel structure
+*Satisfies: FR-002, FR-003, FR-014, FR-015, FR-016, FR-017*
+
+Inside the Generate panel, provide:
+- A type selector with options for `PZN`, `NTIN`, `GTIN`, `PPN`, and `PCID`.
+- An embed-PZN checkbox row that is present in the markup and shown only for `NTIN` and `PPN`.
+- An invalid-generation checkbox row that is disabled and cleared when `PCID` is selected.
+- A Generate button.
+- A result block containing generated value, result label, and Copy button.
+
+### T-2.4 · Validate panel structure
+*Satisfies: FR-002, FR-004, FR-008, FR-009, FR-018, FR-019, FR-020*
+
+Inside the Validate panel, provide:
+- A type selector with the same five options.
+- A freeform text input for the identifier value.
+- A Validate button.
+- A result block containing the validated value, result label, and an embedded-PZN container for NTIN/PPN sub-results.
+
+---
+
+## Phase 3 — Styling And Result States
+
+Apply only the visual rules required by the current implementation. Do not invent extra responsive or accessibility behavior not present in the code.
+
+### T-3.1 · Base layout
+*Satisfies: FR-052*
+
+- System font stack.
+- Neutral light background.
+- One centered container with `max-width` around 660 px.
+- White card surfaces with subtle shadow and rounded corners.
+
+### T-3.2 · Interactive controls
+*Satisfies: FR-052*
+
+- Styled tab buttons with active underline state.
+- Full-width selects, text inputs, and primary buttons.
+- Checkbox rows for optional generator behavior.
+
+### T-3.3 · Result banners
+*Satisfies: FR-006, FR-007, FR-052*
+
+- Hidden by default.
+- `.success` state for valid/generated-valid outcomes.
+- `.error` state for invalid/generated-invalid outcomes.
+- Sub-result variants for embedded PZN: success, error, and warn.
+
+### T-3.4 · Copy button feedback styling
+*Satisfies: FR-010, FR-013*
+
+- Inline secondary button styling for Copy.
+- No separate toast mechanism is required by the current implementation.
+
+---
+
+## Phase 4 — Generate Flow
+
+Wire the Generate panel to the selected type and options.
+
+### T-4.1 · Option synchronization
+*Satisfies: FR-014, FR-015, FR-016, FR-017*
+
+Implement `syncGenOptions()`:
+1. Read the selected generator type.
+2. Show the embed-PZN row only for `NTIN` and `PPN`.
+3. Disable and clear the invalid-generation checkbox for `PCID`.
+4. Re-enable invalid generation for all other types.
+
+### T-4.2 · Type-dispatched generation
+*Satisfies: FR-002, FR-003, FR-014, FR-046*
+
+On Generate button click:
+1. Read the selected type.
+2. Read `wantInvalid` from the checkbox unless that checkbox is disabled.
+3. Read `embedPzn` from the checkbox.
+4. Dispatch to `generatePzn`, `generateNtin`, `generateGtin`, `generatePpn`, or `generatePcid`.
+5. Catch unexpected errors and render an error result.
+
+### T-4.3 · Generate result labeling
+*Satisfies: FR-006, FR-014*
+
+- Valid generation label: `Generated valid <TYPE>`.
+- Invalid generation label: `Generated invalid <TYPE> — check digit deliberately corrupted`.
+- Success/error banner class is driven by whether the user requested invalid generation.
+
+### T-4.4 · Copy target storage
+*Satisfies: FR-010, FR-011*
+
+After successful generation, store the generated value in `#gen-copy.dataset.copy` for later copy invocation.
+
+---
+
+## Phase 5 — Validate Flow
+
+Wire validation to the selected type and render a single structural-validity result.
+
+### T-5.1 · Empty input guard
+*Satisfies: FR-008*
+
+If the Validate input is empty after trimming:
+- Show an error result.
+- Set the displayed value to an em dash placeholder.
+- Use the exact message `Please enter an identifier value.`
+- Do not invoke any validator.
+
+### T-5.2 · Type-dispatched validation
+*Satisfies: FR-002, FR-004, FR-005*
+
+Implement `runValidation()` to:
+1. Read the selected type.
+2. Dispatch to `validatePzn`, `validateNtin`, `validateGtin`, `validatePpn`, or `validatePcid`.
+3. Use the selected type label, not auto-detection, to build the result text.
+
+### T-5.3 · Result labeling
+*Satisfies: FR-007*
+
+- Valid message: `✓ <TYPE> is structurally valid`.
+- Invalid message: `✗ <TYPE> is structurally invalid`.
+- The result area always shows the submitted input value when validation runs.
+
+### T-5.4 · Enter key shortcut
+*Satisfies: FR-009*
+
+Attach a `keydown` listener to the Validate input so pressing Enter triggers `runValidation()`.
+
+---
+
+## Phase 6 — Embedded PZN Inspection
+
+This phase covers the NTIN/PPN-specific secondary result block.
+
+### T-6.1 · NTIN and PPN extraction dispatch
+*Satisfies: FR-018, FR-019, FR-020*
+
+After validation:
+- If the selected type is `NTIN`, call `extractPznFromNtin(value)`.
+- If the selected type is `PPN`, call `extractPznFromPpn(value)`.
+- For all other types, render no embedded-PZN block.
+
+### T-6.2 · Embedded PZN sub-result rendering
+*Satisfies: FR-018, FR-019, FR-020*
+
+Implement `buildEmbeddedPznBlock(pzn)`:
+- If extraction returns `null`, render warn text `Embedded PZN: could not be extracted`.
+- If a PZN is extracted, validate it with `validatePzn(pzn)`.
+- Render a success or error sub-block stating whether the embedded PZN is valid.
+
+---
+
+## Phase 7 — Clipboard And Interaction Polish
+
+Keep clipboard behavior aligned with the current code rather than the older GTIN-only plan.
+
+### T-7.1 · Tab switching
+*Satisfies: FR-001, FR-052*
+
+One click handler per tab button should:
+1. Remove `.active` from all tab buttons and panels.
+2. Activate the clicked tab.
+3. Activate the matching panel using its `data-tab` value.
+
+### T-7.2 · Copy behavior
+*Satisfies: FR-010, FR-011, FR-012, FR-013*
+
+Wire the Generate copy button to:
+- Read `dataset.copy`.
+- Call `navigator.clipboard?.writeText(value)` when a value is present.
+- Silently ignore promise rejection.
+- Change the button label to `Copied!` and revert it to `Copy` after 1.5 seconds.
 
 ---
 
 ## Delivery Checklist
 
-- [ ] All five `validate*` functions pass edge-case inputs (correct, wrong check digit, wrong length, dummy PZN)
-- [ ] All five `generate*` functions produce values that pass their own `validate*` function
-- [ ] `generatePzn(false)` never returns a dummy or cd-10 value in 10 000 trials
-- [ ] "Generate invalid" produces a value that fails validation for PZN, NTIN, GTIN, PPN
-- [ ] PCID "Generate invalid" checkbox is disabled and cannot be enabled
-- [ ] "Embed PZN" row is hidden for PZN, GTIN, PCID types
-- [ ] Validate panel shows embedded PZN sub-result for NTIN and PPN only
-- [ ] Copy button label resets after 1.5 s
-- [ ] File opens correctly as a local `file://` URL with no network requests
+Verify each item manually before marking the feature complete.
+
+**Algorithms**
+- [x] `validatePzn` rejects dummy PZNs and unallocated check digit `10`
+- [x] `generatePzn(true)` produces a value that fails `validatePzn`
+- [x] `validateGtin` accepts valid GTIN-8, GTIN-12, GTIN-13, and GTIN-14 lengths after stripping non-digits
+- [x] `generateGtin(true)` produces a value that fails `validateGtin`
+- [x] `validateNtin` enforces 13 digits and delegates to GTIN validation
+- [x] `extractPznFromNtin` returns the inner 8-digit segment for a well-formed NTIN
+- [x] `validatePpn` accepts optional `9N` prefix and checks the trailing 2-digit checksum
+- [x] `extractPznFromPpn` returns the inner 8-digit segment after optional prefix removal
+- [x] `generatePcid()` returns a value that passes `validatePcid`
+
+**Generate flow**
+- [x] The type selector offers exactly PZN, NTIN, GTIN, PPN, and PCID
+- [x] The embed-PZN option is shown only for NTIN and PPN
+- [x] The invalid-generation option is disabled and unchecked for PCID
+- [x] Generating with invalid mode on PZN, NTIN, GTIN, or PPN yields an error-styled result with the deliberate-corruption label
+- [x] Generated values are stored for the Copy button
+
+**Validate flow**
+- [x] Empty input shows `Please enter an identifier value.`
+- [x] Enter key triggers validation from the input field
+- [x] Valid values show `✓ <TYPE> is structurally valid`
+- [x] Invalid values show `✗ <TYPE> is structurally invalid`
+- [x] Validation uses the user-selected type rather than type auto-detection
+
+**Embedded PZN**
+- [x] NTIN validation renders an embedded-PZN sub-result
+- [x] PPN validation renders an embedded-PZN sub-result
+- [x] Extraction failure renders `Embedded PZN: could not be extracted`
+- [x] Extracted embedded PZNs are separately marked valid or invalid
+
+**Clipboard and non-functional**
+- [x] Copy attempts use `navigator.clipboard.writeText()` when available
+- [x] Clipboard write failures are silently ignored
+- [x] Pressing Copy changes the label to `Copied!` and later restores `Copy`
+- [x] The app is a single self-contained `index.html` file with inline CSS and JavaScript
+- [x] The app runs without authentication, external assets, or persistent storage requirements
+
+

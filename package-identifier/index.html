@@ -263,6 +263,7 @@ select:focus, input[type="text"]:focus {
         <span class="result-value" id="gen-value"></span>
         <span class="result-label" id="gen-label"></span><br>
         <button class="copy-btn" id="gen-copy">Copy</button>
+        <div id="gen-embedded"></div>
       </div>
     </div>
   </div>
@@ -513,6 +514,9 @@ document.getElementById('btn-generate').addEventListener('click', () => {
   const wantInvalid = !genInvalidCb.disabled && genInvalidCb.checked;
   const embedPzn    = document.getElementById('gen-embed-pzn').checked;
   const typeLabel   = type.toUpperCase();
+  const embeddedEl  = document.getElementById('gen-embedded');
+
+  embeddedEl.innerHTML = '';
 
   let value;
   try {
@@ -526,6 +530,7 @@ document.getElementById('btn-generate').addEventListener('click', () => {
     }
   } catch (err) {
     showResult('gen', false, '\u2014', 'Error: ' + err.message);
+    document.getElementById('gen-copy').dataset.copy = '';
     return;
   }
 
@@ -535,13 +540,21 @@ document.getElementById('btn-generate').addEventListener('click', () => {
 
   showResult('gen', !wantInvalid, value, label);
   document.getElementById('gen-copy').dataset.copy = value;
+
+  if (type === 'ntin') embeddedEl.appendChild(buildEmbeddedPznBlock(extractPznFromNtin(value)));
+  else if (type === 'ppn') embeddedEl.appendChild(buildEmbeddedPznBlock(extractPznFromPpn(value)));
 });
 
 document.getElementById('gen-copy').addEventListener('click', function () {
   const v = this.dataset.copy || '';
-  if (v) navigator.clipboard?.writeText(v).catch(() => {});
-  this.textContent = 'Copied!';
-  setTimeout(() => { this.textContent = 'Copy'; }, 1500);
+  if (!v || !navigator.clipboard?.writeText) return;
+
+  navigator.clipboard.writeText(v)
+    .then(() => {
+      this.textContent = 'Copied!';
+      setTimeout(() => { this.textContent = 'Copy'; }, 1500);
+    })
+    .catch(() => {});
 });
 
 // ── Validate panel ────────────────────────────────────────

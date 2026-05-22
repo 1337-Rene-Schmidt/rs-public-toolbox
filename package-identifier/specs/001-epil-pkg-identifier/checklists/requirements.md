@@ -1,4 +1,4 @@
-# Specification Quality Checklist: ePIL Package Identifier Tool
+# Specification Quality Checklist: Package Identifier Tool
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-05-21
@@ -6,9 +6,9 @@
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [ ] No implementation details (languages, frameworks, APIs)
 - [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
+- [ ] Written for non-technical stakeholders
 - [x] All mandatory sections completed
 
 ## Requirement Completeness
@@ -16,7 +16,7 @@
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
+- [ ] Success criteria are technology-agnostic (no implementation details)
 - [x] All acceptance scenarios are defined
 - [x] Edge cases are identified
 - [x] Scope is clearly bounded
@@ -27,17 +27,20 @@
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [ ] No implementation details leak into specification
 
 ## Notes
 
-- All checklist items pass. Specification is ready for `/speckit.plan`.
-- No clarification questions surfaced; all ambiguities resolved via reasonable defaults documented in the Assumptions section.
-- The standard assumed is EU FMD GS1 DataMatrix (AI 01 / 17 / 10 / 21). If a different identifier format is intended, update FR-001/FR-002 and the Assumptions section before planning.
+- Structure, completeness, and testability checks pass for the current spec.
+- Implementation-agnostic and non-technical-stakeholder checks do not pass because the current spec intentionally mirrors the delivered `index.html` behavior.
+- No clarification questions remain; current assumptions are explicit in the Assumptions section.
+- The current scope covers PZN, NTIN, GTIN, PPN, and PCID generation/validation, plus embedded PZN inspection for NTIN and PPN.
+- Batch, lot, expiry, serial-number, and DataMatrix requirements remain out of scope.
 
 ### Revision history
 
-**2026-05-21 — post-implementation analysis (`/specify.analyze`)**
+**2026-05-22 — checklist realignment (`/specify.analyze`)**
 
-- FR-003, FR-004, FR-005, FR-008, FR-010 updated to align with the delivered implementation.
-- Four internal inconsistencies resolved: expired-date outcome (warn, not invalid); duplicate US-2 scenario number; "13-digit GTIN" narrowed to "GTIN-13 or GTIN-14"; `$` removed from GS1 charset edge-case example.
+- Renamed the checklist from `ePIL Package Identifier Tool` to `Package Identifier Tool`.
+- Replaced stale GTIN-only and expiry-era notes with the current multi-identifier implementation scope.
+- Marked implementation-agnostic and non-technical-stakeholder checklist items as not passing because the current spec is intentionally implementation-derived.
