@@ -92,10 +92,10 @@ description: "Task list template for feature implementation"
 - [x] T024 [US2] Implement generate result labeling in index.html: valid label `Generated valid <TYPE>`, invalid label `Generated invalid <TYPE> — check digit deliberately corrupted`, with success/error banner class driven by whether invalid generation was requested
 - [x] T025 [US2] Store the generated value in `#gen-copy.dataset.copy` in index.html after successful generation, for later copy invocation
 - [x] T026 [US2] Wire the Generate Copy button in index.html: read `dataset.copy`, call `navigator.clipboard?.writeText(value)` when a value is present, silently ignore promise rejection, and change the button label to `Copied!`, reverting to `Copy` after 1.5 seconds (depends on T025)
-- [ ] T036 [US2] Extend `generatePpn(wantInvalid, embedPzn, includePrefix = true)` in index.html per [contracts/ppn-generation.md](contracts/ppn-generation.md): prepend `9N` only when `includePrefix` is true; the 12-digit body and its checksum computation (`_ppnCheck`/`_decimalModulo`) MUST NOT change, so `validatePpn` and `extractPznFromPpn` behave identically regardless of `includePrefix` (depends on T013)
-- [ ] T037 [US2] Add a `9N` prefix checkbox row in index.html inside `.options-block`, after the invalid-generation row: `id="row-ppn-prefix"` wrapping `<input type="checkbox" id="gen-ppn-prefix" checked>`, hidden by default via the existing `.hidden` class pattern
-- [ ] T038 [US2] Update `syncGenOptions()` in index.html: show `row-ppn-prefix` only when the selected type is `ppn`; do not alter the checkbox's checked state when toggling visibility (depends on T022, T037)
-- [ ] T039 [US2] Update the Generate button click handler in index.html: when the selected type is `ppn`, read `includePrefix` from `#gen-ppn-prefix.checked` and pass it as the third argument to `generatePpn`; other types are unaffected (depends on T023, T036, T037)
+- [x] T036 [US2] Extend `generatePpn(wantInvalid, embedPzn, includePrefix = true)` in index.html per [contracts/ppn-generation.md](contracts/ppn-generation.md): prepend `9N` only when `includePrefix` is true; the 12-digit body and its checksum computation (`_ppnCheck`/`_decimalModulo`) MUST NOT change, so `validatePpn` and `extractPznFromPpn` behave identically regardless of `includePrefix` (depends on T013)
+- [x] T037 [US2] Add a `9N` prefix checkbox row in index.html inside `.options-block`, after the invalid-generation row: `id="row-ppn-prefix"` wrapping `<input type="checkbox" id="gen-ppn-prefix" checked>`, hidden by default via the existing `.hidden` class pattern
+- [x] T038 [US2] Update `syncGenOptions()` in index.html: show `row-ppn-prefix` only when the selected type is `ppn`; do not alter the checkbox's checked state when toggling visibility (depends on T022, T037)
+- [x] T039 [US2] Update the Generate button click handler in index.html: when the selected type is `ppn`, read `includePrefix` from `#gen-ppn-prefix.checked` and pass it as the third argument to `generatePpn`; other types are unaffected (depends on T023, T036, T037)
 
 **Checkpoint**: User Stories 1 AND 2 both work independently — generating any of the five types produces a labeled result, Copy provides visible feedback, and PPN generation independently supports the invalid and `9N`-prefix options per FR-039/FR-040
 
@@ -127,7 +127,7 @@ description: "Task list template for feature implementation"
 - [x] T033 Walk through the Delivery Checklist in [plan.md](plan.md) against the running index.html and confirm every item still holds
 - [x] T034 Manually verify all constitution Article IV/V invariants (generator–validator duality and exact algorithm specifications) for PZN, GTIN, NTIN, PPN, and PCID
 - [x] T035 Verify the corrected PPN algorithm (ISO/IEC 7064 MOD 97-10) in index.html against the worked example: PZN `12345678` → body `1112345678` → checksum `35` → PPN `111234567835` / `9N111234567835`; confirm `validatePpn` accepts both forms and `_decimalModulo(ppn, 97) === 1`
-- [ ] T040 Walk through [quickstart.md](quickstart.md) Scenarios 1–4 against the running index.html: confirm the `9N` prefix row is visible only for `PPN`; confirm all four combinations of invalid × prefix generate with the correct label and prefix presence; confirm Validate and embedded-PZN inspection are unaffected by `includePrefix` (depends on T036–T039)
+- [x] T040 Walk through [quickstart.md](quickstart.md) Scenarios 1–4 against the running index.html: confirm the `9N` prefix row is visible only for `PPN`; confirm all four combinations of invalid × prefix generate with the correct label and prefix presence; confirm Validate and embedded-PZN inspection are unaffected by `includePrefix` (depends on T036–T039)
 
 ---
 

@@ -330,7 +330,7 @@ Verify each item manually before marking the feature complete.
 - [x] `validatePpn` accepts optional `9N` prefix and checks the trailing 2-digit checksum
 - [x] `extractPznFromPpn` returns the inner 8-digit segment after optional prefix removal
 - [x] `generatePcid()` returns a value that passes `validatePcid`
-- [ ] `generatePpn(wantInvalid, embedPzn, includePrefix)` produces the correct 12-digit body/checksum for all four `wantInvalid` × `includePrefix` combinations, with `9N` present only when `includePrefix` is true
+- [x] `generatePpn(wantInvalid, embedPzn, includePrefix)` produces the correct 12-digit body/checksum for all four `wantInvalid` × `includePrefix` combinations, with `9N` present only when `includePrefix` is true
 
 **Generate flow**
 - [x] The type selector offers exactly PZN, NTIN, GTIN, PPN, and PCID
@@ -338,9 +338,9 @@ Verify each item manually before marking the feature complete.
 - [x] The invalid-generation option is disabled and unchecked for PCID
 - [x] Generating with invalid mode on PZN, NTIN, GTIN, or PPN yields an error-styled result with the deliberate-corruption label
 - [x] Generated values are stored for the Copy button
-- [ ] The `9N` prefix option is shown only for PPN and defaults to checked
-- [ ] Toggling the `9N` prefix option is independent of the invalid-generation option and affects only prefix presence, not validity
-- [ ] All four PPN combinations (valid+prefixed, valid+unprefixed, invalid+prefixed, invalid+unprefixed) validate consistently with `validatePpn`
+- [x] The `9N` prefix option is shown only for PPN and defaults to checked
+- [x] Toggling the `9N` prefix option is independent of the invalid-generation option and affects only prefix presence, not validity
+- [x] All four PPN combinations (valid+prefixed, valid+unprefixed, invalid+prefixed, invalid+unprefixed) validate consistently with `validatePpn`
 
 **Validate flow**
 - [x] Empty input shows `Please enter an identifier value.`

@@ -255,6 +255,10 @@ select:focus, input[type="text"]:focus {
           <input type="checkbox" id="gen-invalid">
           Generate <strong>invalid</strong> identifier (deliberately corrupted check digit)
         </label>
+        <label class="checkbox-row hidden" id="row-ppn-prefix">
+          <input type="checkbox" id="gen-ppn-prefix" checked>
+          Include the <strong>9N</strong> prefix
+        </label>
       </div>
 
       <button class="btn btn-primary" id="btn-generate">Generate</button>
@@ -437,7 +441,7 @@ function validatePpn(value) {
   return _decimalModulo(v, 97) === 1;
 }
 
-function generatePpn(wantInvalid, embedPzn) {
+function generatePpn(wantInvalid, embedPzn, includePrefix = true) {
   let ppn;
   do {
     const inner  = embedPzn
@@ -446,7 +450,7 @@ function generatePpn(wantInvalid, embedPzn) {
     const body10 = '11' + inner; // IFA PRA company code '11'
     let cd = _ppnCheck(body10);
     if (wantInvalid) cd = (cd + 1) % 97;
-    ppn = '9N' + body10 + String(cd).padStart(2, '0');
+    ppn = (includePrefix ? '9N' : '') + body10 + String(cd).padStart(2, '0');
   } while (!wantInvalid && !validatePpn(ppn));
   return ppn;
 }
@@ -494,11 +498,13 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 const genTypeEl    = document.getElementById('gen-type');
 const rowEmbedEl   = document.getElementById('row-embed-pzn');
 const rowInvalidEl = document.getElementById('row-invalid');
+const rowPrefixEl  = document.getElementById('row-ppn-prefix');
 const genInvalidCb = document.getElementById('gen-invalid');
 
 function syncGenOptions() {
   const t = genTypeEl.value;
   rowEmbedEl.classList.toggle('hidden', t !== 'ntin' && t !== 'ppn');
+  rowPrefixEl.classList.toggle('hidden', t !== 'ppn');
   if (t === 'pcid') {
     rowInvalidEl.classList.add('disabled');
     genInvalidCb.checked  = false;
@@ -516,6 +522,7 @@ document.getElementById('btn-generate').addEventListener('click', () => {
   const type        = genTypeEl.value;
   const wantInvalid = !genInvalidCb.disabled && genInvalidCb.checked;
   const embedPzn    = document.getElementById('gen-embed-pzn').checked;
+  const includePrefix = document.getElementById('gen-ppn-prefix').checked;
   const typeLabel   = type.toUpperCase();
   const embeddedEl  = document.getElementById('gen-embedded');
 
@@ -527,7 +534,7 @@ document.getElementById('btn-generate').addEventListener('click', () => {
       case 'pzn':  value = generatePzn(wantInvalid);            break;
       case 'ntin': value = generateNtin(wantInvalid, embedPzn); break;
       case 'gtin': value = generateGtin(wantInvalid);           break;
-      case 'ppn':  value = generatePpn(wantInvalid, embedPzn);  break;
+      case 'ppn':  value = generatePpn(wantInvalid, embedPzn, includePrefix);  break;
       case 'pcid': value = generatePcid();                      break;
       default: throw new Error('Unknown type: ' + type);
     }
