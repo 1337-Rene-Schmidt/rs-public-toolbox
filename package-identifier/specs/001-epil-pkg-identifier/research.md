@@ -61,3 +61,157 @@ existing invalid-generation checkbox.
 ## Open questions
 
 None remaining for this increment.
+
+---
+
+# Research: PPN Generation — EPL v2.3.x Compatibility Mode
+
+**Scope of this research pass**: FR-041–FR-045, SC-010 (an opt-in generation-time option that
+produces PPN check digits accepted by the current EPL backend, plus explanatory help text)
+
+## Background
+
+Cross-checking `index.html` against the EPL backend's `PpnValidationService.php` revealed that
+`calculateCheckDigit()` does not implement ISO/IEC 7064 MOD 97-10 (the standard cited in this
+project's constitution, Article IV). It instead sums each body digit's `ord()` (ASCII code, not
+its numeric value) weighted by position (`2..11`), then takes `% 97`. This is a backend defect,
+not an alternate valid standard — but until the backend is fixed, PPNs generated with the correct
+standard formula are rejected by EPL with "invalid PPN format". A backend fix has been proposed
+separately; this research covers a frontend-side interim accommodation.
+
+## Decision: Add a second checksum function and a 4th boolean parameter, not a mode-specific clone
+
+**Decision**: Add `_ppnCheckEplLegacy(body10)`, a faithful reproduction of the backend's current
+(buggy) formula, alongside the existing `_ppnCheck(body10)`. Extend
+`generatePpn(wantInvalid, embedPzn, includePrefix)` to
+`generatePpn(wantInvalid, embedPzn, includePrefix, eplCompat = false)`, which selects which
+checksum function computes the check digit. `validatePpn` is extended to accept a value under
+*either* formula.
+
+**Rationale**:
+- Mirrors the same additive-boolean-parameter pattern already established for `includePrefix`
+  (see the PPN-prefix research above) — consistent with this codebase's existing conventions
+  rather than introducing a new options-object or a parallel `generatePpnEplCompat()` function
+  that would duplicate the inner/embed-PZN logic.
+- Keeping both checksum functions as named, independently testable functions (rather than
+  branching arithmetic inline) satisfies Constitution Article III's requirement that the
+  reference implementation be cited in a code comment at the point of implementation — the
+  legacy formula's comment cites `PpnValidationService.php::calculateCheckDigit`.
+- `validatePpn` must accept both formulas, because a caller checking a value in Validate mode
+  cannot know which mode it was generated with — the two checksum spaces are large enough
+  (1-in-97 collision chance per formula) that trying both is the only way to make "generate, then
+  paste into Validate" work for EPL-compatible values without adding a second, redundant
+  "EPL v2.3.x compatibility mode" toggle to the Validate panel (out of scope: FR-041 only requires the
+  option in Generate mode).
+- Defaulting `eplCompat` to `false` preserves the existing standard behavior for every current
+  call site (Generate panel default, console use, and the prior PPN-prefix increment's tests).
+
+**Consequence for invalid generation**: previously, the do-while loop in `generatePpn` only
+re-checked validity when generating a *valid* value (`while (!wantInvalid && !validatePpn(ppn))`).
+Because `validatePpn` now accepts two formulas, a value corrupted under one formula could
+coincidentally still satisfy the other (≈1-in-97 chance). The loop condition is generalized to
+`while (wantInvalid ? validatePpn(ppn) : !validatePpn(ppn))`, so invalid generation regenerates
+until the result fails *both* formulas. This is a strict robustness improvement with no behavior
+change for existing non-`eplCompat` call sites (the standard formula was already deterministic).
+
+**Alternatives considered**:
+- *Separate `generatePpnEplCompat()` function*: rejected — duplicates the inner-PZN/embed logic
+  and violates the same "four-step pattern" reasoning already used to reject a separate
+  prefix-only function in the previous increment.
+- *A Validate-mode "EPL v2.3.x compatibility mode" toggle instead of dual-formula acceptance*: rejected
+  — the user only requested the option for Generate mode; requiring a matching toggle in Validate
+  would force users to know in advance which formula produced a given value, which defeats the
+  purpose of "compatibility" (accepting it transparently).
+- *Only mutate `_ppnCheck` to always match the backend's current (buggy) formula*: rejected —
+  would abandon the standard ISO/IEC 7064 formula entirely, violating Constitution Article IV
+  (Standards-First) and silently regressing the correct behavior most callers rely on.
+
+## Decision: Tooltip via native `title` attribute + always-visible `<small>` hint, no JS popover
+
+**Decision**: The **EPL v2.3.x compatibility mode** row includes a small inline help marker with a
+`title` attribute (native browser tooltip on hover/focus for pointer users) and an always-visible
+`<small class="hint">` line directly under the row containing the same explanatory text.
+
+**Rationale**:
+- Constitution Article V requires every interactive element to be fully usable on a 320px touch
+  viewport; a hover-only tooltip is not reliably reachable by touch, so the explanation must also
+  be visible without any interaction.
+- Constitution Article II (Zero External Dependencies) rules out a JS tooltip/popover library; the
+  `title` attribute requires no script and degrades gracefully (Operational Constraints: graceful
+  degradation) if unsupported.
+- This mirrors the plain, semantic-HTML-first style already used throughout `index.html` (no
+  custom widget components).
+
+**Alternatives considered**:
+- *Custom JS-driven popover triggered by click/tap*: rejected — adds interaction-handling code and
+  a new UI pattern for a single help string; unnecessary given the always-visible hint already
+  satisfies the accessibility requirement.
+- *`title` attribute only, no visible hint*: rejected — fails Article V for touch-only users who
+  cannot trigger a native tooltip via hover.
+
+## Open questions
+
+None remaining for this increment.
+
+---
+
+# Research: NTIN/PPN Generation — Custom PZN Embedding
+
+**Scope of this research pass**: FR-046–FR-049, SC-011 (an optional free-text field letting the
+user specify the exact PZN to embed in a generated `NTIN`/`PPN`, in place of the automatic
+random-PZN behavior already governed by the embed-a-valid-PZN checkbox)
+
+## Background
+
+The existing `embedPzn` boolean only chooses *how* the inner 8-digit segment is produced (a
+freshly generated valid PZN, or a random 8-digit number) — it never lets the caller supply a
+*specific* PZN value. Some users want to generate an `NTIN`/`PPN` around a PZN they already have
+(e.g. a real product's PZN) rather than an arbitrary one.
+
+## Decision: A new optional free-text field, validated at the UI layer before generation, taking precedence over `embedPzn` when non-blank
+
+**Decision**: Add a text input (`#gen-pzn-input`, shown only for `NTIN`/`PPN`) alongside the
+existing embed-a-valid-PZN checkbox. On Generate:
+1. Read and trim the field's value as `customPzn`.
+2. If `customPzn` is non-blank and `!validatePzn(customPzn)`: show an error result (mirroring the
+   existing empty-Validate-input guard pattern) and do not call any generator function.
+3. Otherwise, pass `customPzn` (or `null` if blank) as a new trailing argument to `generateNtin`/
+   `generatePpn`; when non-null, the generator uses it verbatim as `inner`, ignoring `embedPzn`.
+   When `null`, behavior is byte-for-byte identical to today (governed by `embedPzn`).
+
+**Rationale**:
+- Keeps `validatePzn` as the single source of truth for "is this a valid PZN" — no new validation
+  logic is introduced, satisfying Constitution Article III (no approximated/duplicated checksum
+  rules).
+- Validating *before* calling the generator functions mirrors the codebase's existing convention
+  of doing user-input error handling in the UI dispatch layer (see the empty-input guard in
+  `runValidation()`) rather than inside the pure algorithm functions — keeps `generateNtin`/
+  `generatePpn` simple and directly console-callable per Constitution Principle I/II.
+- Making `customPzn` take precedence over `embedPzn` (rather than requiring them to be mutually
+  exclusive in the UI) avoids adding new interaction states (e.g. disabling the checkbox); a
+  blank field is an unambiguous "not provided" signal, so precedence is simple to reason about
+  and document (FR-048/FR-049).
+- Adding `customPzn` as a new *trailing* parameter (rather than replacing `embedPzn`) preserves
+  every existing call site's behavior with no change (default `null`), consistent with how
+  `includePrefix` and `eplCompat` were added in prior increments.
+
+**Alternatives considered**:
+- *Replace the embed-a-valid-PZN checkbox with the text field entirely*: rejected — removes the
+  existing "quickly embed *some* valid PZN without typing one" behavior (FR-016/FR-027/FR-029),
+  which is still useful and already covered by existing tests/scenarios.
+- *Validate inside `generateNtin`/`generatePpn` and throw on an invalid `customPzn`*: rejected —
+  inconsistent with how this codebase handles user-input errors (UI-layer guard + rendered error
+  result, not exceptions from pure algorithm functions); would also require every console caller
+  to handle a thrown error just to generate a value.
+- *Disable/clear the embed-a-valid-PZN checkbox when the field is non-blank*: rejected as
+  unnecessary UI-state complexity — the field's precedence over the checkbox is simple enough to
+  document and does not require mutually-exclusive widget states.
+
+## Open questions
+
+None remaining for this increment.
+
+## Open questions
+
+None remaining for this increment.
+

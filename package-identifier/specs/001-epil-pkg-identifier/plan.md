@@ -4,7 +4,7 @@
 **Spec**: [spec.md](spec.md)
 **Created**: 2026-05-21
 **Status**: Draft
-**Design docs**: [research.md](research.md) · [data-model.md](data-model.md) · [contracts/ppn-generation.md](contracts/ppn-generation.md) · [quickstart.md](quickstart.md)
+**Design docs**: [research.md](research.md) · [data-model.md](data-model.md) · [contracts/ppn-generation.md](contracts/ppn-generation.md) · [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md) · [quickstart.md](quickstart.md)
 
 ---
 
@@ -22,11 +22,39 @@ No violations; no complexity tracking entries required.
 
 ---
 
+## Constitution Check (increment: PPN EPL v2.3.x Compatibility Mode, FR-041–FR-045)
+
+| Article | Check | Result |
+|---------|-------|--------|
+| I. Single-File Delivery | New checkbox + tooltip help text reuse existing `.checkbox-row` markup/CSS inline in `index.html`; no new files. | Pass |
+| II. Zero External Dependencies | Tooltip uses the native `title` attribute plus an always-visible `<small>` hint — no JS popover library, no external assets. | Pass |
+| III. Algorithm Fidelity | The new legacy checksum helper is added *alongside*, not instead of, `_ppnCheck`/`_decimalModulo`; it must cite its source (`PpnValidationService.php::calculateCheckDigit`) in a code comment, matching Article III's reference-citation requirement — fidelity is to the actual current backend behavior, which is the cited reference implementation. | Pass, with note (see below) |
+| IV. Standards-First Identifiers | The standard checksum (ISO/IEC 7064 MOD 97-10) remains the default (`eplCompat` defaults `false`); EPL v2.3.x compatibility mode is an explicit, opt-in accommodation for a known backend defect, not a replacement standard. | Pass |
+| V. Mobile-Accessible UI | The explanatory text is rendered as an always-visible `<small>` hint (not a hover-only tooltip), so it remains usable on touch viewports without relying on `:hover`; the `title` attribute is additive for desktop pointer users. | Pass |
+
+**Note on Article III**: this increment intentionally implements a second, non-standard checksum formula. This is not a deviation from *this app's* reference implementation for PPN (IFA MOD-97 / ISO 7064, still the default); it is a deliberate, clearly labeled, opt-in accommodation of a defect in the EPL backend's `PpnValidationService.php`, tracked separately for a backend fix. No complexity tracking entry is required because both formulas are fully implemented (not approximated) and the standard formula remains the default and sole basis for `9N`-prefix-only generation.
+
+---
+
+## Constitution Check (increment: NTIN/PPN Custom PZN Embedding, FR-046–FR-049)
+
+| Article | Check | Result |
+|---------|-------|--------|
+| I. Single-File Delivery | New free-text field reuses the existing `.field`/`label.field-label`/`input[type="text"]` markup and CSS already used by the Validate panel's `#val-input`; no new files. | Pass |
+| II. Zero External Dependencies | Plain `<input type="text">` read via the DOM; no new APIs or libraries. | Pass |
+| III. Algorithm Fidelity | `_pznRawCheck`/`validatePzn` (the existing PZN reference implementation) is reused unchanged to validate the manually entered value before it is trusted as `inner`; no new checksum logic is introduced. | Pass |
+| IV. Standards-First Identifiers | No new identifier type; the field only changes the *source* of the 8-digit inner PZN segment already required by the NTIN/PPN structures. | Pass |
+| V. Mobile-Accessible UI | The field follows the same `.field` pattern (full-width, 44×44px-equivalent tap/focus target) already used elsewhere in the Generate and Validate panels. | Pass |
+
+No violations; no complexity tracking entries required.
+
+---
+
 ## Overview
 
 A single self-contained `index.html` SPA that generates and validates five identifier types entirely in the browser: PZN, NTIN, GTIN, PPN, and PCID. The UI provides exactly two top-level modes, Generate and Validate, plus additional embedded-PZN inspection for NTIN and PPN.
 
-**Requirements covered**: FR-001 – FR-040
+**Requirements covered**: FR-001 – FR-049
 **User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN)
 
 ---
@@ -82,32 +110,35 @@ All functions in this phase are pure JavaScript with no DOM dependency. They sho
 ---
 
 ### T-1.3 · NTIN algorithm pair
-*Satisfies: FR-026, FR-027, FR-033*
+*Satisfies: FR-026, FR-027, FR-033, FR-046, FR-048, FR-049*
 
 | Sub-task | Detail |
 |----------|--------|
 | `validateNtin(value)` | Strip non-digits, require exactly 13 digits, then delegate to `validateGtin`. |
-| `generateNtin(wantInvalid, embedPzn)` | Build `4150 + inner + check`, where `inner` is either a valid generated PZN or a random 8-digit number. |
+| `generateNtin(wantInvalid, embedPzn, customPzn = null)` | Build `4150 + inner + check`, where `inner` is `customPzn` verbatim when provided (already validated by the UI layer per FR-047), otherwise either a valid generated PZN or a random 8-digit number per `embedPzn` exactly as before. |
 | `extractPznFromNtin(value)` | Strip non-digits and return digits `slice(4, 12)` when the value is 13 digits; otherwise return `null`. |
 
-**Done when**: Generated valid NTINs pass validation; generated invalid NTINs fail; extracted embedded PZN matches the inner 8-digit segment.
+**Done when**: Generated valid NTINs pass validation; generated invalid NTINs fail; extracted embedded PZN matches the inner 8-digit segment; when `customPzn` is supplied, the extracted embedded PZN equals it exactly.
 
 ---
 
 ### T-1.4 · PPN algorithm pair
-*Satisfies: FR-028, FR-029, FR-033, FR-039, FR-040*
+*Satisfies: FR-028, FR-029, FR-033, FR-039, FR-040, FR-041, FR-043, FR-044, FR-045*
 
-Implements the IFA PPN specification: ISO/IEC 7064 MOD 97-10 over `"11" + 8-digit PZN`.
+Implements the IFA PPN specification: ISO/IEC 7064 MOD 97-10 over `"11" + 8-digit PZN`. Also
+implements a second, non-standard checksum formula solely for EPL v2.3.x compatibility mode (see
+Constitution Check above and [research.md](research.md)).
 
 | Sub-task | Detail |
 |----------|--------|
 | `_decimalModulo(decimalString, divisor)` | Fold a decimal digit string into a modulo result one digit at a time, avoiding integer-size limits. |
-| `_ppnCheck(body10)` | `remainder = _decimalModulo(body10 + "00", 97)`; `check = 98 - remainder`, zero-padded to 2 digits. |
-| `validatePpn(value)` | Remove an optional `9N` data-identifier prefix, require exactly 12 digits, and confirm `_decimalModulo(value, 97) === 1`. |
-| `generatePpn(wantInvalid, embedPzn, includePrefix)` | Build `11 + inner + checksum`, where `inner` is either a valid generated PZN (leading zeroes retained) or a random 8-digit number; corrupt by shifting the checksum `+1 mod 97` when `wantInvalid`; prepend `9N` only when `includePrefix` is true. Default `includePrefix` to `true` for any caller (e.g. console use) that omits it. |
-| `extractPznFromPpn(value)` | Remove an optional `9N` prefix, then return digits `slice(2, 10)` when the stripped value is 12 digits; otherwise return `null`. |
+| `_ppnCheck(body10)` | `remainder = _decimalModulo(body10 + "00", 97)`; `check = 98 - remainder`, zero-padded to 2 digits. Standard ISO/IEC 7064 MOD 97-10 formula; used whenever `eplCompat` is `false` (the default). |
+| `_ppnCheckEplLegacy(body10)` | Mirrors the EPL backend's current (non-standard) formula: sum each character's `charCodeAt(0)` (not its numeric digit value) weighted `2..11` in position order, then take `% 97`. Cite the source as a code comment, e.g. `// Source: PpnValidationService.php::calculateCheckDigit (legacy, pre-fix)`. Zero-pad the result to 2 digits. |
+| `validatePpn(value)` | Remove an optional `9N` data-identifier prefix, require exactly 12 digits, and confirm the trailing 2-digit checksum satisfies *either* `_ppnCheck` (`_decimalModulo(value, 97) === 1`) *or* `_ppnCheckEplLegacy` on the first 10 digits — accepting either recognized checksum formula. |
+| `generatePpn(wantInvalid, embedPzn, includePrefix, eplCompat, customPzn = null)` | Build `11 + inner + checksum`, where `inner` is `customPzn` verbatim when provided (already validated by the UI layer per FR-047), otherwise either a valid generated PZN (leading zeroes retained) or a random 8-digit number per `embedPzn`, exactly as before; compute the checksum via `_ppnCheckEplLegacy` when `eplCompat` is `true`, otherwise via `_ppnCheck`; corrupt by shifting the checksum `+1 mod 97` when `wantInvalid`; prepend `9N` only when `includePrefix` is true. Loop (regenerate/recorrupt) until `validatePpn(ppn) === !wantInvalid`, so an invalid result is guaranteed to fail *both* checksum formulas, not just the one that was corrupted. Default `includePrefix` to `true`, `eplCompat` to `false`, and `customPzn` to `null` for any caller that omits them. |
+| `extractPznFromPpn(value)` | Remove an optional `9N` prefix, then return digits `slice(2, 10)` when the stripped value is 12 digits; otherwise return `null`. Unaffected by `eplCompat`. |
 
-**Done when**: `generatePpn` for PZN `12345678` yields body `1112345678`, checksum `35`, PPN `111234567835` / `9N111234567835` depending on `includePrefix`; `_decimalModulo('111234567835', 97) === 1`; all four combinations of `wantInvalid` × `includePrefix` validate consistently via `validatePpn` (prefix presence never changes the valid/invalid outcome); embedded PZN extraction yields the 8-digit inner payload in every combination.
+**Done when**: `generatePpn` for PZN `12345678` yields body `1112345678`, checksum `35`, PPN `111234567835` / `9N111234567835` depending on `includePrefix` (standard mode); all four combinations of `wantInvalid` × `includePrefix` validate consistently via `validatePpn`; with `eplCompat` true, the checksum instead matches `_ppnCheckEplLegacy`'s output and the resulting value still validates via `validatePpn` (which accepts either formula); with `eplCompat` true and `wantInvalid` true, the value fails `validatePpn` (i.e. fails both formulas); embedded PZN extraction yields the 8-digit inner payload in every combination.
 
 ---
 
@@ -141,13 +172,14 @@ Write the full markup in a single document with inline CSS and JavaScript only.
 - Two corresponding panels, with Generate active on initial load.
 
 ### T-2.3 · Generate panel structure
-*Satisfies: FR-002, FR-003, FR-014, FR-015, FR-016, FR-017, FR-039*
+*Satisfies: FR-002, FR-003, FR-014, FR-015, FR-016, FR-017, FR-039, FR-041, FR-042, FR-044*
 
 Inside the Generate panel, provide:
 - A type selector with options for `PZN`, `NTIN`, `GTIN`, `PPN`, and `PCID`.
 - An embed-PZN checkbox row that is present in the markup and shown only for `NTIN` and `PPN`.
 - An invalid-generation checkbox row that is disabled and cleared when `PCID` is selected.
 - A `9N` prefix checkbox row (`row-ppn-prefix` / `gen-ppn-prefix`), checked by default, present in the markup and shown only for `PPN`. This option is independent of the invalid-generation checkbox.
+- An **EPL v2.3.x compatibility mode** checkbox row (`row-epl-compat` / `gen-epl-compat`), unchecked by default, present in the markup and shown only for `PPN`. This option is independent of the invalid-generation, `9N`-prefix, and embed-PZN checkboxes. Include a help affordance (e.g. a small info marker with a `title` attribute) plus an always-visible `<small>` hint line explaining: "Generates PPNs using the checksum the EPL backend currently expects, instead of the standard ISO/IEC 7064 formula."
 - A Generate button.
 - A result block containing generated value, result label, and Copy button.
 
@@ -202,7 +234,7 @@ Apply only the visual rules required by the current implementation. Do not inven
 Wire the Generate panel to the selected type and options.
 
 ### T-4.1 · Option synchronization
-*Satisfies: FR-014, FR-015, FR-016, FR-017, FR-039*
+*Satisfies: FR-014, FR-015, FR-016, FR-017, FR-039, FR-041*
 
 Implement `syncGenOptions()`:
 1. Read the selected generator type.
@@ -210,16 +242,17 @@ Implement `syncGenOptions()`:
 3. Disable and clear the invalid-generation checkbox for `PCID`.
 4. Re-enable invalid generation for all other types.
 5. Show the `9N` prefix row only for `PPN`; leave its checked state untouched when shown/hidden so the user's last choice is remembered across type switches.
+6. Show the **EPL v2.3.x compatibility mode** row only for `PPN`; leave its checked state untouched when shown/hidden.
 
 ### T-4.2 · Type-dispatched generation
-*Satisfies: FR-002, FR-003, FR-014, FR-030, FR-039, FR-040*
+*Satisfies: FR-002, FR-003, FR-014, FR-030, FR-039, FR-040, FR-041, FR-044*
 
 On Generate button click:
 1. Read the selected type.
 2. Read `wantInvalid` from the checkbox unless that checkbox is disabled.
 3. Read `embedPzn` from the checkbox.
-4. When the type is `PPN`, read `includePrefix` from the `9N` prefix checkbox.
-5. Dispatch to `generatePzn`, `generateNtin`, `generateGtin`, `generatePpn` (passing `includePrefix`), or `generatePcid`.
+4. When the type is `PPN`, read `includePrefix` from the `9N` prefix checkbox and `eplCompat` from the **EPL v2.3.x compatibility mode** checkbox.
+5. Dispatch to `generatePzn`, `generateNtin`, `generateGtin`, `generatePpn` (passing `includePrefix` and `eplCompat`), or `generatePcid`.
 6. Catch unexpected errors and render an error result.
 
 ### T-4.3 · Generate result labeling
@@ -341,6 +374,14 @@ Verify each item manually before marking the feature complete.
 - [x] The `9N` prefix option is shown only for PPN and defaults to checked
 - [x] Toggling the `9N` prefix option is independent of the invalid-generation option and affects only prefix presence, not validity
 - [x] All four PPN combinations (valid+prefixed, valid+unprefixed, invalid+prefixed, invalid+unprefixed) validate consistently with `validatePpn`
+- [x] `generatePpn(wantInvalid, embedPzn, includePrefix, eplCompat)` computes the checksum via `_ppnCheckEplLegacy` when `eplCompat` is true, and `validatePpn` accepts values under either checksum formula
+- [x] The **EPL v2.3.x compatibility mode** option is shown only for `PPN`, defaults unchecked, and works independently of the invalid-generation, `9N`-prefix, and embed-PZN options
+- [x] The **EPL v2.3.x compatibility mode** option has a tooltip (`title` attribute) and an always-visible `<small>` hint explaining its purpose
+- [x] Combining **EPL v2.3.x compatibility mode** with invalid-generation produces a value that fails `validatePpn` (i.e. fails both checksum formulas)
+- [x] The optional PZN-to-embed field is shown only for `NTIN` and `PPN` and has no effect for other types
+- [x] `generateNtin`/`generatePpn` accept an optional `customPzn` argument that, when a valid PZN string, is embedded verbatim (leading zeroes preserved) instead of a randomly generated inner PZN
+- [x] Entering a structurally invalid value in the PZN-to-embed field blocks generation and shows an error result instead
+- [x] Leaving the PZN-to-embed field blank preserves the exact prior behavior of the embed-a-valid-PZN checkbox
 
 **Validate flow**
 - [x] Empty input shows `Please enter an identifier value.`

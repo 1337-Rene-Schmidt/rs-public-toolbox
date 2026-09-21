@@ -135,6 +135,8 @@ select:focus, input[type="text"]:focus {
 
 .checkbox-row.hidden { display: none; }
 .checkbox-row.disabled { opacity: 0.45; pointer-events: none; }
+.checkbox-row .hint { display: block; font-size: 0.78rem; opacity: 0.7; margin-top: 0.15rem; }
+.pzn-input-row.hidden { display: none; }
 
 /* ── Button ─────────────────────────────────────────────── */
 .btn {
@@ -251,6 +253,10 @@ select:focus, input[type="text"]:focus {
           <input type="checkbox" id="gen-embed-pzn" checked>
           Embed a valid PZN inside this identifier
         </label>
+        <div class="pzn-input-row hidden" id="row-pzn-input">
+          <label class="field-label" for="gen-pzn-input">PZN to embed</label>
+          <input type="text" id="gen-pzn-input" placeholder="Optional: exact PZN to embed" autocomplete="off" spellcheck="false">
+        </div>
         <label class="checkbox-row" id="row-invalid">
           <input type="checkbox" id="gen-invalid">
           Generate <strong>invalid</strong> identifier (deliberately corrupted check digit)
@@ -258,6 +264,13 @@ select:focus, input[type="text"]:focus {
         <label class="checkbox-row hidden" id="row-ppn-prefix">
           <input type="checkbox" id="gen-ppn-prefix" checked>
           Include the <strong>9N</strong> prefix
+        </label>
+        <label class="checkbox-row hidden" id="row-epl-compat">
+          <input type="checkbox" id="gen-epl-compat">
+          <span>
+            <span title="Generates PPNs using the checksum the EPL backend currently expects, instead of the standard ISO/IEC 7064 formula.">EPL v2.3.x compatibility mode</span>
+            <small class="hint">Generates PPNs using the checksum the EPL backend currently expects, instead of the standard ISO/IEC 7064 formula.</small>
+          </span>
         </label>
       </div>
 
@@ -390,12 +403,14 @@ function validateNtin(value) {
   return validateGtin(digits);
 }
 
-function generateNtin(wantInvalid, embedPzn) {
+function generateNtin(wantInvalid, embedPzn, customPzn = null) {
   let ntin;
   do {
-    const inner  = embedPzn
-      ? generatePzn(false)
-      : String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0');
+    const inner  = customPzn !== null
+      ? customPzn
+      : embedPzn
+        ? generatePzn(false)
+        : String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0');
     const base12 = '4150' + inner;
     let cd = _gtinCheck(base12);
     if (wantInvalid) cd = (cd + 1) % 10;
@@ -434,24 +449,37 @@ function _ppnCheck(body10) {
   return 98 - remainder;
 }
 
+// Source: PpnValidationService.php::calculateCheckDigit (legacy formula, pre-fix)
+function _ppnCheckEplLegacy(body10) {
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += body10.charCodeAt(i) * (i + 2);
+  }
+  return sum % 97;
+}
+
 function validatePpn(value) {
   let v = value;
   if (v.startsWith('9N')) v = v.slice(2);
   if (!/^\d{12}$/.test(v)) return false;
-  return _decimalModulo(v, 97) === 1;
+  const standard = _decimalModulo(v, 97) === 1;
+  const legacy   = _ppnCheckEplLegacy(v.slice(0, 10)) === parseInt(v.slice(10), 10);
+  return standard || legacy;
 }
 
-function generatePpn(wantInvalid, embedPzn, includePrefix = true) {
+function generatePpn(wantInvalid, embedPzn, includePrefix = true, eplCompat = false, customPzn = null) {
   let ppn;
   do {
-    const inner  = embedPzn
-      ? generatePzn(false)
-      : String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0');
+    const inner  = customPzn !== null
+      ? customPzn
+      : embedPzn
+        ? generatePzn(false)
+        : String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0');
     const body10 = '11' + inner; // IFA PRA company code '11'
-    let cd = _ppnCheck(body10);
+    let cd = eplCompat ? _ppnCheckEplLegacy(body10) : _ppnCheck(body10);
     if (wantInvalid) cd = (cd + 1) % 97;
     ppn = (includePrefix ? '9N' : '') + body10 + String(cd).padStart(2, '0');
-  } while (!wantInvalid && !validatePpn(ppn));
+  } while (wantInvalid ? validatePpn(ppn) : !validatePpn(ppn));
   return ppn;
 }
 
@@ -495,16 +523,20 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // ── Generate panel ────────────────────────────────────────
-const genTypeEl    = document.getElementById('gen-type');
-const rowEmbedEl   = document.getElementById('row-embed-pzn');
-const rowInvalidEl = document.getElementById('row-invalid');
-const rowPrefixEl  = document.getElementById('row-ppn-prefix');
-const genInvalidCb = document.getElementById('gen-invalid');
+const genTypeEl      = document.getElementById('gen-type');
+const rowEmbedEl     = document.getElementById('row-embed-pzn');
+const rowPznInputEl  = document.getElementById('row-pzn-input');
+const rowInvalidEl   = document.getElementById('row-invalid');
+const rowPrefixEl    = document.getElementById('row-ppn-prefix');
+const rowEplCompatEl = document.getElementById('row-epl-compat');
+const genInvalidCb   = document.getElementById('gen-invalid');
 
 function syncGenOptions() {
   const t = genTypeEl.value;
   rowEmbedEl.classList.toggle('hidden', t !== 'ntin' && t !== 'ppn');
+  rowPznInputEl.classList.toggle('hidden', t !== 'ntin' && t !== 'ppn');
   rowPrefixEl.classList.toggle('hidden', t !== 'ppn');
+  rowEplCompatEl.classList.toggle('hidden', t !== 'ppn');
   if (t === 'pcid') {
     rowInvalidEl.classList.add('disabled');
     genInvalidCb.checked  = false;
@@ -523,18 +555,33 @@ document.getElementById('btn-generate').addEventListener('click', () => {
   const wantInvalid = !genInvalidCb.disabled && genInvalidCb.checked;
   const embedPzn    = document.getElementById('gen-embed-pzn').checked;
   const includePrefix = document.getElementById('gen-ppn-prefix').checked;
+  const eplCompat     = document.getElementById('gen-epl-compat').checked;
   const typeLabel   = type.toUpperCase();
   const embeddedEl  = document.getElementById('gen-embedded');
 
   embeddedEl.innerHTML = '';
 
+  // Read and validate the optional PZN-to-embed field (NTIN/PPN only)
+  let customPzn = null;
+  if (type === 'ntin' || type === 'ppn') {
+    const customPznRaw = document.getElementById('gen-pzn-input').value.trim();
+    if (customPznRaw !== '') {
+      if (!validatePzn(customPznRaw)) {
+        showResult('gen', false, '\u2014', 'The PZN-to-embed value is not a structurally valid PZN.');
+        document.getElementById('gen-copy').dataset.copy = '';
+        return;
+      }
+      customPzn = customPznRaw;
+    }
+  }
+
   let value;
   try {
     switch (type) {
       case 'pzn':  value = generatePzn(wantInvalid);            break;
-      case 'ntin': value = generateNtin(wantInvalid, embedPzn); break;
+      case 'ntin': value = generateNtin(wantInvalid, embedPzn, customPzn); break;
       case 'gtin': value = generateGtin(wantInvalid);           break;
-      case 'ppn':  value = generatePpn(wantInvalid, embedPzn, includePrefix);  break;
+      case 'ppn':  value = generatePpn(wantInvalid, embedPzn, includePrefix, eplCompat, customPzn);  break;
       case 'pcid': value = generatePcid();                      break;
       default: throw new Error('Unknown type: ' + type);
     }

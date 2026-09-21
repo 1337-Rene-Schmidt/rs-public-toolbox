@@ -96,8 +96,19 @@ description: "Task list template for feature implementation"
 - [x] T037 [US2] Add a `9N` prefix checkbox row in index.html inside `.options-block`, after the invalid-generation row: `id="row-ppn-prefix"` wrapping `<input type="checkbox" id="gen-ppn-prefix" checked>`, hidden by default via the existing `.hidden` class pattern
 - [x] T038 [US2] Update `syncGenOptions()` in index.html: show `row-ppn-prefix` only when the selected type is `ppn`; do not alter the checkbox's checked state when toggling visibility (depends on T022, T037)
 - [x] T039 [US2] Update the Generate button click handler in index.html: when the selected type is `ppn`, read `includePrefix` from `#gen-ppn-prefix.checked` and pass it as the third argument to `generatePpn`; other types are unaffected (depends on T023, T036, T037)
+- [x] T041 [US2] Add `_ppnCheckEplLegacy(body10)` in index.html per [contracts/ppn-generation.md](contracts/ppn-generation.md): sum each of the 10 body-digit characters' `charCodeAt(0)` weighted `2..11` in position order, then take `% 97`, zero-padded to 2 digits; cite the source in a code comment, e.g. `// Source: PpnValidationService.php::calculateCheckDigit (legacy formula, pre-fix)` (depends on T012)
+- [x] T042 [US2] Update `validatePpn(value)` in index.html: accept the value if its trailing 2-digit checksum matches *either* the standard formula (`_decimalModulo(value, 97) === 1`) *or* `_ppnCheckEplLegacy` applied to the first 10 digits (depends on T012, T041)
+- [x] T043 [US2] Extend `generatePpn(wantInvalid, embedPzn, includePrefix, eplCompat = false)` in index.html per [contracts/ppn-generation.md](contracts/ppn-generation.md): compute the checksum via `_ppnCheckEplLegacy` when `eplCompat` is true, otherwise via `_ppnCheck`; generalize the retry loop to `while (wantInvalid ? validatePpn(ppn) : !validatePpn(ppn))` so invalid generation is regenerated/recorrupted until it fails validation under both checksum formulas (depends on T036, T041, T042)
+- [x] T044 [US2] Add an **EPL v2.3.x compatibility mode** checkbox row in index.html inside `.options-block`, after the `9N` prefix row: `id="row-epl-compat"` wrapping `<input type="checkbox" id="gen-epl-compat">` (unchecked by default), hidden by default via the existing `.hidden` class pattern; include an inline help marker with a `title` attribute and an always-visible `<small class="hint">` line explaining: "Generates PPNs using the checksum the EPL backend currently expects, instead of the standard ISO/IEC 7064 formula." (depends on T037)
+- [x] T045 [US2] Update `syncGenOptions()` in index.html: show `row-epl-compat` only when the selected type is `ppn`; do not alter the checkbox's checked state when toggling visibility (depends on T038, T044)
+- [x] T046 [US2] Update the Generate button click handler in index.html: when the selected type is `ppn`, read `eplCompat` from `#gen-epl-compat.checked` and pass it as the fourth argument to `generatePpn`; other types are unaffected (depends on T039, T043, T044)
+- [x] T048 [US2] Extend `generateNtin(wantInvalid, embedPzn, customPzn = null)` in index.html per [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md): when `customPzn` is non-null, use it verbatim as `inner` instead of a generated/random value, ignoring `embedPzn`; when `null`, behavior is unchanged (depends on T011)
+- [x] T049 [US2] Extend `generatePpn(wantInvalid, embedPzn, includePrefix, eplCompat, customPzn = null)` in index.html per [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md): when `customPzn` is non-null, use it verbatim as `inner` instead of a generated/random value, ignoring `embedPzn`; when `null`, behavior is unchanged (depends on T043)
+- [x] T050 [US2] Add a PZN-to-embed text field row in index.html inside `.options-block`, after the embed-PZN checkbox row: `id="row-pzn-input"` wrapping `<input type="text" id="gen-pzn-input" placeholder="Optional: exact PZN to embed">`, hidden by default via the existing `.hidden` class pattern (depends on T021)
+- [x] T051 [US2] Update `syncGenOptions()` in index.html: show `row-pzn-input` only when the selected type is `ntin` or `ppn`, matching the existing embed-PZN row's visibility rule; do not alter the field's value when toggling visibility (depends on T022, T045, T050)
+- [x] T052 [US2] Update the Generate button click handler in index.html per [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md): when the selected type is `ntin` or `ppn`, read and trim `#gen-pzn-input`'s value as `customPzn`; if non-blank and `!validatePzn(customPzn)`, render an error result and return without calling any generator; otherwise pass `customPzn || null` as the new trailing argument to `generateNtin`/`generatePpn`; other types are unaffected (depends on T006, T046, T048, T049, T050, T051)
 
-**Checkpoint**: User Stories 1 AND 2 both work independently — generating any of the five types produces a labeled result, Copy provides visible feedback, and PPN generation independently supports the invalid and `9N`-prefix options per FR-039/FR-040
+**Checkpoint**: User Stories 1 AND 2 both work independently — generating any of the five types produces a labeled result, Copy provides visible feedback, PPN generation independently supports the invalid and `9N`-prefix options per FR-039/FR-040, PPN generation independently supports **EPL v2.3.x compatibility mode** per FR-041–FR-045, and `NTIN`/`PPN` generation independently supports embedding a user-specified PZN per FR-046–FR-049
 
 ---
 
@@ -128,6 +139,8 @@ description: "Task list template for feature implementation"
 - [x] T034 Manually verify all constitution Article IV/V invariants (generator–validator duality and exact algorithm specifications) for PZN, GTIN, NTIN, PPN, and PCID
 - [x] T035 Verify the corrected PPN algorithm (ISO/IEC 7064 MOD 97-10) in index.html against the worked example: PZN `12345678` → body `1112345678` → checksum `35` → PPN `111234567835` / `9N111234567835`; confirm `validatePpn` accepts both forms and `_decimalModulo(ppn, 97) === 1`
 - [x] T040 Walk through [quickstart.md](quickstart.md) Scenarios 1–4 against the running index.html: confirm the `9N` prefix row is visible only for `PPN`; confirm all four combinations of invalid × prefix generate with the correct label and prefix presence; confirm Validate and embedded-PZN inspection are unaffected by `includePrefix` (depends on T036–T039)
+- [x] T047 Walk through [quickstart.md](quickstart.md) Scenarios 5–7 against the running index.html: confirm the **EPL v2.3.x compatibility mode** row is visible only for `PPN` with a tooltip/hint; confirm all four combinations of invalid × EPL-compat generate with the correct label; confirm an EPL-compat-generated PPN validates successfully in the Validate tab; confirm in the console that its checksum matches `_ppnCheckEplLegacy` directly (depends on T041–T046)
+- [x] T053 Walk through [quickstart.md](quickstart.md) Scenarios 8–11 against the running index.html: confirm the PZN-to-embed field is visible only for `NTIN`/`PPN`; confirm a valid custom PZN is embedded exactly (checked via the embedded-PZN sub-result and, for NTIN, by slicing the generated value); confirm an invalid custom PZN blocks generation and shows an error result for both types; confirm a blank field preserves the exact prior embed-PZN-checkbox behavior (depends on T048–T052)
 
 ---
 
@@ -163,6 +176,18 @@ description: "Task list template for feature implementation"
 
 - T036 (algorithm) and T037 (markup) touch different parts of index.html but should still be applied one at a time, consistent with the single-file convention above; both must land before T038/T039 (wiring), which must land before T040 (manual verification)
 - This increment extends User Story 2 only; User Stories 1 and 3 are unaffected because `validatePpn`/`extractPznFromPpn` already tolerate an optional `9N` prefix
+
+### PPN EPL v2.3.x Compatibility Mode Increment (T041–T047)
+
+- T041 (`_ppnCheckEplLegacy`) must land before T042 (`validatePpn` dual-formula acceptance), which must land before T043 (`generatePpn` 4th parameter + generalized retry loop); T044 (markup) is independent of T041–T043 but must land before T045 (visibility wiring) and T046 (dispatch wiring)
+- T043 changes the retry-loop condition used by the existing invalid-generation path (T036/T013); re-verify T040's invalid-generation checks still hold after T043 lands
+- This increment extends User Story 2 only; User Story 1's Validate flow benefits automatically because `validatePpn` (T042) now accepts both checksum formulas without any Validate-panel changes; User Story 3's embedded-PZN extraction (T028) is unaffected because the inner PZN segment's position does not depend on which outer checksum formula was used
+
+### NTIN/PPN Custom PZN Embedding Increment (T048–T053)
+
+- T048 (`generateNtin` 3rd parameter) and T049 (`generatePpn` 5th parameter) are independent of each other but both must land before T052 (dispatch wiring); T050 (markup) is independent of T048/T049 but must land before T051 (visibility wiring) and T052 (dispatch wiring)
+- T052 depends on `validatePzn` (T006) for its pre-generation guard, and on T046/T049 since it extends the same click handler and the same `generatePpn` call site touched by the EPL-compat increment
+- This increment extends User Story 2 only; User Story 1's Validate flow and User Story 3's embedded-PZN extraction (T027–T028) are unaffected because a custom-embedded PZN occupies the exact same fixed-position slice as a randomly generated one
 
 ---
 

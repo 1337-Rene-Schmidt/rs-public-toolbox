@@ -42,6 +42,9 @@ A developer, tester, or packaging operator needs to generate example identifiers
 3. **Given** the selected type is `PCID`, **When** the user views Generate options, **Then** the invalid-generation option is disabled and cleared.
 4. **Given** a value has been generated, **When** the user presses Copy, **Then** the app attempts to copy the generated value to the clipboard and temporarily changes the button label to `Copied!`.
 5. **Given** the selected Generate type is `PPN`, **When** the user toggles the `9N` prefix option, **Then** the generated value includes or omits the visible `9N` prefix accordingly, independent of the invalid-generation option.
+6. **Given** the selected Generate type is `PPN`, **When** the user enables **EPL v2.3.x compatibility mode** and presses Generate, **Then** the app produces a PPN whose check digit is computed so that the EPL backend's current PPN validation accepts it, whether or not the embed-PZN option is enabled.
+7. **Given** the selected Generate type is `NTIN` or `PPN`, **When** the user enters a structurally valid PZN into the optional PZN-to-embed field and presses Generate, **Then** the app produces a value that embeds exactly that PZN.
+8. **Given** the selected Generate type is `NTIN` or `PPN`, **When** the user enters a structurally invalid value into the optional PZN-to-embed field and presses Generate, **Then** the app shows an error result and does not produce a generated value.
 
 ---
 
@@ -68,6 +71,9 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - Formatting characters may be tolerated for some numeric identifier types.
 - PPN values may be entered with or without their visible prefix.
 - PPN generation may deliberately omit the `9N` prefix even when embedding a valid PZN or generating an invalid check digit.
+- **EPL v2.3.x compatibility mode** may be combined with the invalid-generation option; the resulting value MUST still fail structural validation.
+- The optional PZN-to-embed field has no effect for identifier types other than `NTIN` and `PPN`.
+- Leading/trailing whitespace in the PZN-to-embed field is trimmed before validation; a whitespace-only value is treated as blank.
 - PCID invalid generation is not supported.
 - Copy may be unavailable in some environments; failures are silent.
 - The app does not auto-detect identifier type; the user must choose the intended type before generating or validating.
@@ -126,6 +132,21 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - **FR-039**: In Generate mode, when the selected type is `PPN`, the system MUST provide an option, independent of the invalid-generation option, to include or omit the visible `9N` data-identifier prefix on the generated value.
 - **FR-040**: `PPN` generation MUST support all four combinations of the invalid-generation option and the `9N`-prefix option (valid+prefixed, valid+unprefixed, invalid+prefixed, invalid+unprefixed); each combination MUST validate consistently with `validatePpn`, whose result MUST NOT depend on prefix presence.
 
+### PPN EPL v2.3.x Compatibility Mode
+
+- **FR-041**: In Generate mode, when the selected type is `PPN`, the system MUST provide an **EPL v2.3.x compatibility mode** option, independent of the invalid-generation and `9N`-prefix options, that computes the PPN's check digit using the checksum formula currently expected by the EPL backend service rather than the standard ISO/IEC 7064 MOD 97-10 checksum. This formula selection applies as the basis for the check digit regardless of whether the invalid-generation option is also enabled (see FR-045 for the invalid case).
+- **FR-042**: The system MUST provide explanatory help text (a tooltip) for the **EPL v2.3.x compatibility mode** option describing that it generates PPNs compatible with the EPL backend's current, non-standard PPN checksum validation, for interoperability until that backend defect is fixed.
+- **FR-043**: `PPN` structural validation MUST accept a value whose checksum satisfies either the standard ISO/IEC 7064 MOD 97-10 formula or the EPL-compatible legacy formula, so that a PPN generated in EPL v2.3.x compatibility mode also validates successfully when checked in Validate mode.
+- **FR-044**: **EPL v2.3.x compatibility mode** MUST work with or without the embed-a-valid-PZN option enabled.
+- **FR-045**: When **EPL v2.3.x compatibility mode** is combined with the invalid-generation option, the produced value MUST fail structural validation under both the standard and the EPL-compatible checksum formulas.
+
+### NTIN/PPN Custom PZN Embedding
+
+- **FR-046**: In Generate mode, when the selected type is `NTIN` or `PPN`, the system MUST provide an optional free-text field where the user may specify the exact PZN value to embed, instead of relying on the embed-a-valid-PZN checkbox to choose one automatically.
+- **FR-047**: When the optional PZN-to-embed field is non-blank, the system MUST validate its value using the same rules as `PZN` validation before generating; if the value is not a structurally valid PZN, the system MUST show an error result and MUST NOT produce a generated `NTIN`/`PPN` value.
+- **FR-048**: When the optional PZN-to-embed field is non-blank and structurally valid, `NTIN`/`PPN` generation MUST embed that exact value (including leading zeroes) regardless of the embed-a-valid-PZN checkbox's state.
+- **FR-049**: When the optional PZN-to-embed field is blank (or contains only whitespace), `NTIN`/`PPN` generation MUST behave exactly as previously specified (FR-016, FR-027, FR-029), governed solely by the embed-a-valid-PZN checkbox.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -139,6 +160,8 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - **SC-007**: A user can use the tool without signing in or connecting to a backend account.
 - **SC-008**: The app remains usable in its default compact single-page layout on typical desktop and mobile widths.
 - **SC-009**: For `PPN`, generating with any combination of the invalid-generation and `9N`-prefix options produces a value whose structural validity matches the requested invalid state, regardless of whether the `9N` prefix is present.
+- **SC-010**: For `PPN`, generating with **EPL v2.3.x compatibility mode** enabled produces a value that validates successfully in the app's own Validate mode and uses the checksum formula the EPL backend currently expects; combining this option with invalid-generation always produces a value that fails validation under both recognized checksum formulas.
+- **SC-011**: For `NTIN` and `PPN`, entering a structurally valid PZN into the optional PZN-to-embed field produces a generated value that embeds exactly that PZN; entering a structurally invalid value produces an error result and no generated value.
 
 ## Assumptions
 
@@ -148,3 +171,5 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - `NTIN` and `PPN` embedded-PZN inspection is an additional informational result and does not replace the outer identifier's own validation result.
 - Copy support depends on platform capabilities and may not be available in every environment.
 - The interface is intended to remain usable in a compact single-page layout without separate device-specific modes.
+- The EPL backend service currently validates PPN check digits using a legacy formula that differs from the ISO/IEC 7064 MOD 97-10 standard; **EPL v2.3.x compatibility mode** is a temporary interoperability accommodation for that discrepancy, not a redefinition of the PPN standard. Accepting either checksum formula in Validate mode marginally increases the chance of a false-positive structural validation for arbitrary pasted input, which is an accepted trade-off for this tool's structural-testing purpose.
+- A manually entered PZN-to-embed value is trusted only after passing the same structural validation as PZN Validate mode; no additional semantic, registry, or issuance verification is performed on it.
