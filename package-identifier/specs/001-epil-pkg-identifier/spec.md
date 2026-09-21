@@ -41,6 +41,7 @@ A developer, tester, or packaging operator needs to generate example identifiers
 2. **Given** the selected type is checksum-based (`PZN`, `NTIN`, `GTIN`, or `PPN`) and the user enables the invalid option, **When** they press Generate, **Then** the app produces a deliberately invalid identifier and labels it as invalid.
 3. **Given** the selected type is `PCID`, **When** the user views Generate options, **Then** the invalid-generation option is disabled and cleared.
 4. **Given** a value has been generated, **When** the user presses Copy, **Then** the app attempts to copy the generated value to the clipboard and temporarily changes the button label to `Copied!`.
+5. **Given** the selected Generate type is `PPN`, **When** the user toggles the `9N` prefix option, **Then** the generated value includes or omits the visible `9N` prefix accordingly, independent of the invalid-generation option.
 
 ---
 
@@ -66,6 +67,7 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 
 - Formatting characters may be tolerated for some numeric identifier types.
 - PPN values may be entered with or without their visible prefix.
+- PPN generation may deliberately omit the `9N` prefix even when embedding a valid PZN or generating an invalid check digit.
 - PCID invalid generation is not supported.
 - Copy may be unavailable in some environments; failures are silent.
 - The app does not auto-detect identifier type; the user must choose the intended type before generating or validating.
@@ -119,6 +121,11 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - **FR-037**: The interface MUST present clear success and error states for every generate and validate operation.
 - **FR-038**: The interface MUST present the workflow in a compact, single-page layout with tab-based navigation.
 
+### PPN Prefix Generation
+
+- **FR-039**: In Generate mode, when the selected type is `PPN`, the system MUST provide an option, independent of the invalid-generation option, to include or omit the visible `9N` data-identifier prefix on the generated value.
+- **FR-040**: `PPN` generation MUST support all four combinations of the invalid-generation option and the `9N`-prefix option (valid+prefixed, valid+unprefixed, invalid+prefixed, invalid+unprefixed); each combination MUST validate consistently with `validatePpn`, whose result MUST NOT depend on prefix presence.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -131,6 +138,7 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - **SC-006**: Copying a generated value changes the copy button label to `Copied!` and then back to `Copy`.
 - **SC-007**: A user can use the tool without signing in or connecting to a backend account.
 - **SC-008**: The app remains usable in its default compact single-page layout on typical desktop and mobile widths.
+- **SC-009**: For `PPN`, generating with any combination of the invalid-generation and `9N`-prefix options produces a value whose structural validity matches the requested invalid state, regardless of whether the `9N` prefix is present.
 
 ## Assumptions
 

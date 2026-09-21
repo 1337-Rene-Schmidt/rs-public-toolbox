@@ -4,6 +4,21 @@
 **Spec**: [spec.md](spec.md)
 **Created**: 2026-05-21
 **Status**: Draft
+**Design docs**: [research.md](research.md) · [data-model.md](data-model.md) · [contracts/ppn-generation.md](contracts/ppn-generation.md) · [quickstart.md](quickstart.md)
+
+---
+
+## Constitution Check (increment: PPN invalid × 9N-prefix options, FR-039/FR-040)
+
+| Article | Check | Result |
+|---------|-------|--------|
+| I. Single-File Delivery | New checkbox reuses existing `.checkbox-row` markup/CSS inline in `index.html`; no new files. | Pass |
+| II. Zero External Dependencies | No new APIs or libraries; pure boolean state read from a checkbox. | Pass |
+| III. Algorithm Fidelity | Checksum computation (`_ppnCheck`/`_decimalModulo`) is untouched; `includePrefix` only affects string concatenation after the checksum is computed. | Pass |
+| IV. Standards-First Identifiers | No new identifier type introduced; existing IFA PPN / ISO 7064 MOD 97-10 citation stands. | Pass |
+| V. Mobile-Accessible UI | New checkbox row follows the same pattern (and CSS classes) as `row-embed-pzn`/`row-invalid`, so it inherits the 44×44px tap target and contrast rules. | Pass |
+
+No violations; no complexity tracking entries required.
 
 ---
 
@@ -11,7 +26,7 @@
 
 A single self-contained `index.html` SPA that generates and validates five identifier types entirely in the browser: PZN, NTIN, GTIN, PPN, and PCID. The UI provides exactly two top-level modes, Generate and Validate, plus additional embedded-PZN inspection for NTIN and PPN.
 
-**Requirements covered**: FR-001 – FR-052
+**Requirements covered**: FR-001 – FR-040
 **User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN)
 
 ---
@@ -41,7 +56,7 @@ Phase 7 — Clipboard and interaction polish
 All functions in this phase are pure JavaScript with no DOM dependency. They should be directly callable in the browser console.
 
 ### T-1.1 · PZN algorithm pair
-*Satisfies: FR-021, FR-022, FR-023, FR-024, FR-025*
+*Satisfies: FR-021, FR-022, FR-033*
 
 | Sub-task | Detail |
 |----------|--------|
@@ -54,7 +69,7 @@ All functions in this phase are pure JavaScript with no DOM dependency. They sho
 ---
 
 ### T-1.2 · GTIN algorithm pair
-*Satisfies: FR-026, FR-027, FR-028, FR-029, FR-030*
+*Satisfies: FR-023, FR-024, FR-025, FR-033*
 
 | Sub-task | Detail |
 |----------|--------|
@@ -67,7 +82,7 @@ All functions in this phase are pure JavaScript with no DOM dependency. They sho
 ---
 
 ### T-1.3 · NTIN algorithm pair
-*Satisfies: FR-031, FR-032, FR-033, FR-034, FR-035, FR-036*
+*Satisfies: FR-026, FR-027, FR-033*
 
 | Sub-task | Detail |
 |----------|--------|
@@ -80,21 +95,24 @@ All functions in this phase are pure JavaScript with no DOM dependency. They sho
 ---
 
 ### T-1.4 · PPN algorithm pair
-*Satisfies: FR-037, FR-038, FR-039, FR-040, FR-041, FR-042, FR-043*
+*Satisfies: FR-028, FR-029, FR-033, FR-039, FR-040*
+
+Implements the IFA PPN specification: ISO/IEC 7064 MOD 97-10 over `"11" + 8-digit PZN`.
 
 | Sub-task | Detail |
 |----------|--------|
-| `_ppnCheck(base10)` | Compute MOD-97 over the first 10 digits using character codes and multipliers `2..11`. |
-| `validatePpn(value)` | Remove an optional `9N` prefix, require exactly 12 digits, and compare the computed 2-digit checksum with the trailing digits. |
-| `generatePpn(wantInvalid, embedPzn)` | Build `9N + 11 + inner + checksum`, where `inner` is either a valid generated PZN or a random 8-digit number. |
+| `_decimalModulo(decimalString, divisor)` | Fold a decimal digit string into a modulo result one digit at a time, avoiding integer-size limits. |
+| `_ppnCheck(body10)` | `remainder = _decimalModulo(body10 + "00", 97)`; `check = 98 - remainder`, zero-padded to 2 digits. |
+| `validatePpn(value)` | Remove an optional `9N` data-identifier prefix, require exactly 12 digits, and confirm `_decimalModulo(value, 97) === 1`. |
+| `generatePpn(wantInvalid, embedPzn, includePrefix)` | Build `11 + inner + checksum`, where `inner` is either a valid generated PZN (leading zeroes retained) or a random 8-digit number; corrupt by shifting the checksum `+1 mod 97` when `wantInvalid`; prepend `9N` only when `includePrefix` is true. Default `includePrefix` to `true` for any caller (e.g. console use) that omits it. |
 | `extractPznFromPpn(value)` | Remove an optional `9N` prefix, then return digits `slice(2, 10)` when the stripped value is 12 digits; otherwise return `null`. |
 
-**Done when**: Generated valid PPNs pass validation; generated invalid PPNs fail; embedded PZN extraction yields the 8-digit inner payload.
+**Done when**: `generatePpn` for PZN `12345678` yields body `1112345678`, checksum `35`, PPN `111234567835` / `9N111234567835` depending on `includePrefix`; `_decimalModulo('111234567835', 97) === 1`; all four combinations of `wantInvalid` × `includePrefix` validate consistently via `validatePpn` (prefix presence never changes the valid/invalid outcome); embedded PZN extraction yields the 8-digit inner payload in every combination.
 
 ---
 
 ### T-1.5 · PCID algorithm pair
-*Satisfies: FR-044, FR-045, FR-046*
+*Satisfies: FR-030, FR-031, FR-032*
 
 | Sub-task | Detail |
 |----------|--------|
@@ -110,25 +128,26 @@ All functions in this phase are pure JavaScript with no DOM dependency. They sho
 Write the full markup in a single document with inline CSS and JavaScript only.
 
 ### T-2.1 · Document shell
-*Satisfies: FR-001, FR-047, FR-048, FR-049*
+*Satisfies: FR-001, FR-038*
 
 - `<!DOCTYPE html>`, `lang="en"`, `charset="UTF-8"`, and a mobile viewport meta tag.
 - Page title `Package Identifier Tool`.
 - One `.container` wrapping the header, tab controls, and both panels.
 
 ### T-2.2 · Tab navigation
-*Satisfies: FR-001, FR-052*
+*Satisfies: FR-001, FR-038*
 
 - Two tab buttons labelled `Generate` and `Validate`.
 - Two corresponding panels, with Generate active on initial load.
 
 ### T-2.3 · Generate panel structure
-*Satisfies: FR-002, FR-003, FR-014, FR-015, FR-016, FR-017*
+*Satisfies: FR-002, FR-003, FR-014, FR-015, FR-016, FR-017, FR-039*
 
 Inside the Generate panel, provide:
 - A type selector with options for `PZN`, `NTIN`, `GTIN`, `PPN`, and `PCID`.
 - An embed-PZN checkbox row that is present in the markup and shown only for `NTIN` and `PPN`.
 - An invalid-generation checkbox row that is disabled and cleared when `PCID` is selected.
+- A `9N` prefix checkbox row (`row-ppn-prefix` / `gen-ppn-prefix`), checked by default, present in the markup and shown only for `PPN`. This option is independent of the invalid-generation checkbox.
 - A Generate button.
 - A result block containing generated value, result label, and Copy button.
 
@@ -148,7 +167,7 @@ Inside the Validate panel, provide:
 Apply only the visual rules required by the current implementation. Do not invent extra responsive or accessibility behavior not present in the code.
 
 ### T-3.1 · Base layout
-*Satisfies: FR-052*
+*Satisfies: FR-038*
 
 - System font stack.
 - Neutral light background.
@@ -156,14 +175,14 @@ Apply only the visual rules required by the current implementation. Do not inven
 - White card surfaces with subtle shadow and rounded corners.
 
 ### T-3.2 · Interactive controls
-*Satisfies: FR-052*
+*Satisfies: FR-038*
 
 - Styled tab buttons with active underline state.
 - Full-width selects, text inputs, and primary buttons.
 - Checkbox rows for optional generator behavior.
 
 ### T-3.3 · Result banners
-*Satisfies: FR-006, FR-007, FR-052*
+*Satisfies: FR-006, FR-007, FR-037*
 
 - Hidden by default.
 - `.success` state for valid/generated-valid outcomes.
@@ -183,23 +202,25 @@ Apply only the visual rules required by the current implementation. Do not inven
 Wire the Generate panel to the selected type and options.
 
 ### T-4.1 · Option synchronization
-*Satisfies: FR-014, FR-015, FR-016, FR-017*
+*Satisfies: FR-014, FR-015, FR-016, FR-017, FR-039*
 
 Implement `syncGenOptions()`:
 1. Read the selected generator type.
 2. Show the embed-PZN row only for `NTIN` and `PPN`.
 3. Disable and clear the invalid-generation checkbox for `PCID`.
 4. Re-enable invalid generation for all other types.
+5. Show the `9N` prefix row only for `PPN`; leave its checked state untouched when shown/hidden so the user's last choice is remembered across type switches.
 
 ### T-4.2 · Type-dispatched generation
-*Satisfies: FR-002, FR-003, FR-014, FR-046*
+*Satisfies: FR-002, FR-003, FR-014, FR-030, FR-039, FR-040*
 
 On Generate button click:
 1. Read the selected type.
 2. Read `wantInvalid` from the checkbox unless that checkbox is disabled.
 3. Read `embedPzn` from the checkbox.
-4. Dispatch to `generatePzn`, `generateNtin`, `generateGtin`, `generatePpn`, or `generatePcid`.
-5. Catch unexpected errors and render an error result.
+4. When the type is `PPN`, read `includePrefix` from the `9N` prefix checkbox.
+5. Dispatch to `generatePzn`, `generateNtin`, `generateGtin`, `generatePpn` (passing `includePrefix`), or `generatePcid`.
+6. Catch unexpected errors and render an error result.
 
 ### T-4.3 · Generate result labeling
 *Satisfies: FR-006, FR-014*
@@ -277,7 +298,7 @@ Implement `buildEmbeddedPznBlock(pzn)`:
 Keep clipboard behavior aligned with the current code rather than the older GTIN-only plan.
 
 ### T-7.1 · Tab switching
-*Satisfies: FR-001, FR-052*
+*Satisfies: FR-001, FR-038*
 
 One click handler per tab button should:
 1. Remove `.active` from all tab buttons and panels.
@@ -309,6 +330,7 @@ Verify each item manually before marking the feature complete.
 - [x] `validatePpn` accepts optional `9N` prefix and checks the trailing 2-digit checksum
 - [x] `extractPznFromPpn` returns the inner 8-digit segment after optional prefix removal
 - [x] `generatePcid()` returns a value that passes `validatePcid`
+- [ ] `generatePpn(wantInvalid, embedPzn, includePrefix)` produces the correct 12-digit body/checksum for all four `wantInvalid` × `includePrefix` combinations, with `9N` present only when `includePrefix` is true
 
 **Generate flow**
 - [x] The type selector offers exactly PZN, NTIN, GTIN, PPN, and PCID
@@ -316,6 +338,9 @@ Verify each item manually before marking the feature complete.
 - [x] The invalid-generation option is disabled and unchecked for PCID
 - [x] Generating with invalid mode on PZN, NTIN, GTIN, or PPN yields an error-styled result with the deliberate-corruption label
 - [x] Generated values are stored for the Copy button
+- [ ] The `9N` prefix option is shown only for PPN and defaults to checked
+- [ ] Toggling the `9N` prefix option is independent of the invalid-generation option and affects only prefix presence, not validity
+- [ ] All four PPN combinations (valid+prefixed, valid+unprefixed, invalid+prefixed, invalid+unprefixed) validate consistently with `validatePpn`
 
 **Validate flow**
 - [x] Empty input shows `Please enter an identifier value.`

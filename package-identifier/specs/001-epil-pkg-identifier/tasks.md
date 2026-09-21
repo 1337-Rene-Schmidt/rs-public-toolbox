@@ -51,8 +51,8 @@ description: "Task list template for feature implementation"
 - [x] T009 Implement `generateGtin(wantInvalid)` in index.html: create a 13-digit random base, compute the check digit, return a 14-digit GTIN, and optionally corrupt the digit by shifting `+1 mod 10` (depends on T008)
 - [x] T010 Implement `validateNtin(value)` in index.html: strip non-digits, require exactly 13 digits, then delegate to `validateGtin` (depends on T008)
 - [x] T011 Implement `generateNtin(wantInvalid, embedPzn)` in index.html: build `4150 + inner + check`, where `inner` is either a valid generated PZN (via `generatePzn`) or a random 8-digit number (depends on T007, T009, T010)
-- [x] T012 Implement `_ppnCheck(base10)` and `validatePpn(value)` in index.html: remove an optional `9N` prefix, require exactly 12 digits, compute MOD-97 over the first 10 digits using character codes and multipliers `2..11`, and compare the computed 2-digit checksum against the trailing digits
-- [x] T013 Implement `generatePpn(wantInvalid, embedPzn)` in index.html: build `9N + 11 + inner + checksum`, where `inner` is either a valid generated PZN (via `generatePzn`) or a random 8-digit number (depends on T007, T012)
+- [x] T012 Implement `_decimalModulo(decimalString, divisor)`, `_ppnCheck(body10)`, and `validatePpn(value)` in index.html per ISO/IEC 7064 MOD 97-10: `body10 = "11" + pzn`, `check = 98 - decimalModulo(body10 + "00", 97)` zero-padded to 2 digits; validation removes an optional `9N` prefix, requires exactly 12 digits, and confirms `decimalModulo(value, 97) === 1`
+- [x] T013 Implement `generatePpn(wantInvalid, embedPzn)` in index.html: build `9N + 11 + inner + checksum`, where `inner` is either a valid generated PZN (via `generatePzn`) or a random 8-digit number, and corrupt the checksum by shifting `+1 mod 97` when `wantInvalid` (depends on T007, T012)
 - [x] T014 Implement `generatePcid()` in index.html: prefer `crypto.randomUUID()` and fall back to an internal UUID-v4-style template when unavailable
 - [x] T015 Implement `validatePcid(value)` in index.html: validate against the RFC 4122 versions `1..5` regex `^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` (case-insensitive)
 
@@ -92,8 +92,12 @@ description: "Task list template for feature implementation"
 - [x] T024 [US2] Implement generate result labeling in index.html: valid label `Generated valid <TYPE>`, invalid label `Generated invalid <TYPE> — check digit deliberately corrupted`, with success/error banner class driven by whether invalid generation was requested
 - [x] T025 [US2] Store the generated value in `#gen-copy.dataset.copy` in index.html after successful generation, for later copy invocation
 - [x] T026 [US2] Wire the Generate Copy button in index.html: read `dataset.copy`, call `navigator.clipboard?.writeText(value)` when a value is present, silently ignore promise rejection, and change the button label to `Copied!`, reverting to `Copy` after 1.5 seconds (depends on T025)
+- [ ] T036 [US2] Extend `generatePpn(wantInvalid, embedPzn, includePrefix = true)` in index.html per [contracts/ppn-generation.md](contracts/ppn-generation.md): prepend `9N` only when `includePrefix` is true; the 12-digit body and its checksum computation (`_ppnCheck`/`_decimalModulo`) MUST NOT change, so `validatePpn` and `extractPznFromPpn` behave identically regardless of `includePrefix` (depends on T013)
+- [ ] T037 [US2] Add a `9N` prefix checkbox row in index.html inside `.options-block`, after the invalid-generation row: `id="row-ppn-prefix"` wrapping `<input type="checkbox" id="gen-ppn-prefix" checked>`, hidden by default via the existing `.hidden` class pattern
+- [ ] T038 [US2] Update `syncGenOptions()` in index.html: show `row-ppn-prefix` only when the selected type is `ppn`; do not alter the checkbox's checked state when toggling visibility (depends on T022, T037)
+- [ ] T039 [US2] Update the Generate button click handler in index.html: when the selected type is `ppn`, read `includePrefix` from `#gen-ppn-prefix.checked` and pass it as the third argument to `generatePpn`; other types are unaffected (depends on T023, T036, T037)
 
-**Checkpoint**: User Stories 1 AND 2 both work independently — generating any of the five types produces a labeled result, and Copy provides visible feedback
+**Checkpoint**: User Stories 1 AND 2 both work independently — generating any of the five types produces a labeled result, Copy provides visible feedback, and PPN generation independently supports the invalid and `9N`-prefix options per FR-039/FR-040
 
 ---
 
@@ -122,6 +126,8 @@ description: "Task list template for feature implementation"
 - [x] T032 Style interactive controls in index.html: full-width selects, text inputs, and primary buttons; checkbox rows for optional generator behavior; inline secondary button styling for Copy
 - [x] T033 Walk through the Delivery Checklist in [plan.md](plan.md) against the running index.html and confirm every item still holds
 - [x] T034 Manually verify all constitution Article IV/V invariants (generator–validator duality and exact algorithm specifications) for PZN, GTIN, NTIN, PPN, and PCID
+- [x] T035 Verify the corrected PPN algorithm (ISO/IEC 7064 MOD 97-10) in index.html against the worked example: PZN `12345678` → body `1112345678` → checksum `35` → PPN `111234567835` / `9N111234567835`; confirm `validatePpn` accepts both forms and `_decimalModulo(ppn, 97) === 1`
+- [ ] T040 Walk through [quickstart.md](quickstart.md) Scenarios 1–4 against the running index.html: confirm the `9N` prefix row is visible only for `PPN`; confirm all four combinations of invalid × prefix generate with the correct label and prefix presence; confirm Validate and embedded-PZN inspection are unaffected by `includePrefix` (depends on T036–T039)
 
 ---
 
@@ -152,6 +158,11 @@ description: "Task list template for feature implementation"
 
 - Because the entire app is one `index.html` file, most tasks touch the same file and should be done sequentially to avoid merge conflicts, even where the underlying logic is independent
 - Foundational algorithm functions (T006–T015) are logically independent of one another and could be implemented in any order, but should still be applied one at a time against index.html
+
+### PPN Invalid × 9N-Prefix Increment (T036–T040)
+
+- T036 (algorithm) and T037 (markup) touch different parts of index.html but should still be applied one at a time, consistent with the single-file convention above; both must land before T038/T039 (wiring), which must land before T040 (manual verification)
+- This increment extends User Story 2 only; User Stories 1 and 3 are unaffected because `validatePpn`/`extractPznFromPpn` already tolerate an optional `9N` prefix
 
 ---
 

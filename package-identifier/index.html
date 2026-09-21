@@ -408,30 +408,33 @@ function extractPznFromNtin(value) {
 }
 
 // ── PPN (Pharmacy Product Number) ────────────────────────
-// Format: optional '9N' prefix + 12 digits
-//   12 digits = [IFA PRA code (2)][PZN (8)][check (2)]
-// Check digit: MOD-97 over the first 10 digits.
-//   multiplier starts at 1, incremented before each of the 10 steps (yields 2..11).
-//   sum += charCode(digit) * multiplier   (PHP ord() == JS charCodeAt(0))
-//   check digit = sum % 97, zero-padded to 2 digits.
-// Source: PpnValidationService.php, CreateExampleIdCommand.php
+// Format: optional '9N' data-identifier prefix + 12 digits
+//   12 digits = [IFA PRA code "11" (2)][PZN (8)][check (2)]
+// Check digits: ISO/IEC 7064 MOD 97-10, per the IFA PPN specification.
+//   body = "11" + 8-digit PZN (10 digits, leading zeroes retained)
+//   remainder = decimalModulo(body + "00", 97)
+//   check = 98 - remainder, zero-padded to 2 digits
+// The '9N' data identifier is never part of the checksum calculation.
+// A well-formed PPN (without '9N') always satisfies: decimalModulo(ppn, 97) === 1.
 
-function _ppnCheck(base10) {
-  let sum = 0;
-  let mod = 1;
-  for (const ch of base10) {
-    mod++;
-    sum += ch.charCodeAt(0) * mod;
+function _decimalModulo(decimalString, divisor) {
+  let remainder = 0;
+  for (const ch of decimalString) {
+    remainder = (remainder * 10 + (ch.charCodeAt(0) - 48)) % divisor;
   }
-  return sum % 97;
+  return remainder;
+}
+
+function _ppnCheck(body10) {
+  const remainder = _decimalModulo(body10 + '00', 97);
+  return 98 - remainder;
 }
 
 function validatePpn(value) {
   let v = value;
   if (v.startsWith('9N')) v = v.slice(2);
   if (!/^\d{12}$/.test(v)) return false;
-  const actual = parseInt(v.slice(10), 10);
-  return _ppnCheck(v.slice(0, 10)) === actual;
+  return _decimalModulo(v, 97) === 1;
 }
 
 function generatePpn(wantInvalid, embedPzn) {
@@ -440,10 +443,10 @@ function generatePpn(wantInvalid, embedPzn) {
     const inner  = embedPzn
       ? generatePzn(false)
       : String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0');
-    const base10 = '11' + inner; // IFA PRA company code '11'
-    let cd = _ppnCheck(base10);
+    const body10 = '11' + inner; // IFA PRA company code '11'
+    let cd = _ppnCheck(body10);
     if (wantInvalid) cd = (cd + 1) % 97;
-    ppn = '9N' + base10 + String(cd).padStart(2, '0');
+    ppn = '9N' + body10 + String(cd).padStart(2, '0');
   } while (!wantInvalid && !validatePpn(ppn));
   return ppn;
 }

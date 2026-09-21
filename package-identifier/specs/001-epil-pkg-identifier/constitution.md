@@ -80,11 +80,14 @@ Any change to an algorithm invalidates this article and requires a revision.
     of the 13-digit body encode a PZN that MUST be extracted and validated
     independently (see Article VI).
 
-18. **PPN** — an optional `9N` prefix followed by exactly 12 digits; the 2-digit check
-    pair equals `(Σ charCode(d_i) × (i + 2)) % 97` over the first 10 digits
-    (multiplier starts at 2 for the first digit, increments by 1 per digit), zero-
-    padded to 2 digits; the 8 digits at positions 2–9 of the 12-digit body encode a
-    PZN that MUST be extracted and validated independently (see Article VI).
+18. **PPN** — an optional `9N` data-identifier prefix (never included in the checksum)
+    followed by exactly 12 digits: `"11"` (IFA Product Registration Agency code) +
+    8-digit PZN (leading zeroes retained) + 2-digit check, per ISO/IEC 7064 MOD 97-10.
+    Check computation: `remainder = decimalModulo("11" + pzn + "00", 97)`;
+    `check = 98 - remainder`, zero-padded to 2 digits. A well-formed 12-digit PPN
+    (with `9N` stripped) MUST satisfy `decimalModulo(ppn, 97) === 1`. The 8 digits at
+    positions 2–9 of the 12-digit body encode a PZN that MUST be extracted and
+    validated independently (see Article VI).
 
 19. **PCID** — any UUID matching RFC 4122 versions 1–5; the regex pattern is
     `^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
