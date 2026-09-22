@@ -12,11 +12,14 @@
 
 | Article | Check | Result |
 |---------|-------|--------|
-| I. Single-File Delivery | New checkbox reuses existing `.checkbox-row` markup/CSS inline in `index.html`; no new files. | Pass |
-| II. Zero External Dependencies | No new APIs or libraries; pure boolean state read from a checkbox. | Pass |
-| III. Algorithm Fidelity | Checksum computation (`_ppnCheck`/`_decimalModulo`) is untouched; `includePrefix` only affects string concatenation after the checksum is computed. | Pass |
-| IV. Standards-First Identifiers | No new identifier type introduced; existing IFA PPN / ISO 7064 MOD 97-10 citation stands. | Pass |
-| V. Mobile-Accessible UI | New checkbox row follows the same pattern (and CSS classes) as `row-embed-pzn`/`row-invalid`, so it inherits the 44×44px tap target and contrast rules. | Pass |
+| I. Delivery | New checkbox reuses existing `.checkbox-row` markup/CSS inline in `index.html`; no new files, no build step. | Pass |
+| II. Data & Privacy | No new data transmission or persistence; pure boolean UI state read from a checkbox. | Pass |
+| III. Supported Identifier Types | No new identifier type introduced; still exactly PZN, NTIN, GTIN, PPN, PCID. | Pass |
+| IV. Generator–Validator Duality | Soundness/corruption-guarantee invariants for PPN are unaffected; `includePrefix` only changes prefix presence, not the checksum computation used for validity. | Pass |
+| V. Algorithm Specifications | Checksum computation (`_ppnCheck`/`_decimalModulo`) is untouched; `includePrefix` only affects string concatenation after the checksum is computed. | Pass |
+| VI. Embedded PZN | Not applicable — `extractPznFromPpn` already tolerates the optional `9N` prefix; unaffected by this increment. | Pass |
+| VII. User Interface | Still exactly two top-level modes; new checkbox row follows the same `.checkbox-row` pattern as the existing `row-embed-pzn`/`row-invalid` rows. | Pass |
+| VIII. Clipboard | Not applicable — unaffected. | Pass |
 
 No violations; no complexity tracking entries required.
 
@@ -26,13 +29,16 @@ No violations; no complexity tracking entries required.
 
 | Article | Check | Result |
 |---------|-------|--------|
-| I. Single-File Delivery | New checkbox + tooltip help text reuse existing `.checkbox-row` markup/CSS inline in `index.html`; no new files. | Pass |
-| II. Zero External Dependencies | Tooltip uses the native `title` attribute plus an always-visible `<small>` hint — no JS popover library, no external assets. | Pass |
-| III. Algorithm Fidelity | The new legacy checksum helper is added *alongside*, not instead of, `_ppnCheck`/`_decimalModulo`; it must cite its source (`PpnValidationService.php::calculateCheckDigit`) in a code comment, matching Article III's reference-citation requirement — fidelity is to the actual current backend behavior, which is the cited reference implementation. | Pass, with note (see below) |
-| IV. Standards-First Identifiers | The standard checksum (ISO/IEC 7064 MOD 97-10) remains the default (`eplCompat` defaults `false`); EPL v2.3.x compatibility mode is an explicit, opt-in accommodation for a known backend defect, not a replacement standard. | Pass |
-| V. Mobile-Accessible UI | The explanatory text is rendered as an always-visible `<small>` hint (not a hover-only tooltip), so it remains usable on touch viewports without relying on `:hover`; the `title` attribute is additive for desktop pointer users. | Pass |
+| I. Delivery | New checkbox + tooltip help text reuse existing `.checkbox-row` markup/CSS inline in `index.html`; no new files. | Pass |
+| II. Data & Privacy | No new data transmission or persistence; the mode is transient boolean UI state. | Pass |
+| III. Supported Identifier Types | No new identifier type introduced. | Pass |
+| IV. Generator–Validator Duality | Soundness/corruption-guarantee invariants still hold under the alternate checksum: a valid EPL-compat PPN passes `validatePpn`, and an invalid one fails under both formulas (FR-045). | Pass |
+| V. Algorithm Specifications | The new legacy checksum helper is added *alongside*, not instead of, `_ppnCheck`/`_decimalModulo` and is clearly labeled as a non-standard, opt-in accommodation of a known EPL backend defect (cited via code comment: `PpnValidationService.php::calculateCheckDigit`); the standard ISO/IEC 7064 MOD 97-10 formula (Article V §18) remains the default and is unchanged. | Pass, with note (see below) |
+| VI. Embedded PZN | Not applicable — the inner PZN segment's position is unaffected by which checksum formula computed the outer checksum. | Pass |
+| VII. User Interface | The explanatory text is rendered as an always-visible `<small>` hint (not a hover-only tooltip), so it remains usable on touch viewports without relying on `:hover`; the `title` attribute is additive for desktop pointer users. | Pass |
+| VIII. Clipboard | Not applicable — unaffected. | Pass |
 
-**Note on Article III**: this increment intentionally implements a second, non-standard checksum formula. This is not a deviation from *this app's* reference implementation for PPN (IFA MOD-97 / ISO 7064, still the default); it is a deliberate, clearly labeled, opt-in accommodation of a defect in the EPL backend's `PpnValidationService.php`, tracked separately for a backend fix. No complexity tracking entry is required because both formulas are fully implemented (not approximated) and the standard formula remains the default and sole basis for `9N`-prefix-only generation.
+**Note on Article V**: this increment intentionally implements a second, non-standard checksum formula. This is not a deviation from *this app's* reference implementation for PPN (IFA MOD-97 / ISO 7064, still the default); it is a deliberate, clearly labeled, opt-in accommodation of a defect in the EPL backend's `PpnValidationService.php`, tracked separately for a backend fix. No complexity tracking entry is required because both formulas are fully implemented (not approximated) and the standard formula remains the default and sole basis for `9N`-prefix-only generation.
 
 ---
 
@@ -40,11 +46,14 @@ No violations; no complexity tracking entries required.
 
 | Article | Check | Result |
 |---------|-------|--------|
-| I. Single-File Delivery | New free-text field reuses the existing `.field`/`label.field-label`/`input[type="text"]` markup and CSS already used by the Validate panel's `#val-input`; no new files. | Pass |
-| II. Zero External Dependencies | Plain `<input type="text">` read via the DOM; no new APIs or libraries. | Pass |
-| III. Algorithm Fidelity | `_pznRawCheck`/`validatePzn` (the existing PZN reference implementation) is reused unchanged to validate the manually entered value before it is trusted as `inner`; no new checksum logic is introduced. | Pass |
-| IV. Standards-First Identifiers | No new identifier type; the field only changes the *source* of the 8-digit inner PZN segment already required by the NTIN/PPN structures. | Pass |
-| V. Mobile-Accessible UI | The field follows the same `.field` pattern (full-width, 44×44px-equivalent tap/focus target) already used elsewhere in the Generate and Validate panels. | Pass |
+| I. Delivery | New free-text field reuses the existing `.field`/`label.field-label`/`input[type="text"]` markup and CSS already used by the Validate panel's `#val-input`; no new files. | Pass |
+| II. Data & Privacy | The entered PZN is transient UI state only; nothing is transmitted or persisted. | Pass |
+| III. Supported Identifier Types | No new identifier type; the field only changes the *source* of the 8-digit inner PZN segment already required by the NTIN/PPN structures. | Pass |
+| IV. Generator–Validator Duality | Unaffected — a custom-embedded PZN occupies the same fixed-position slice as a randomly generated one, so soundness/corruption-guarantee invariants for NTIN/PPN are unchanged. | Pass |
+| V. Algorithm Specifications | `_pznRawCheck`/`validatePzn` (the existing PZN reference implementation, Article V §15) is reused unchanged to validate the manually entered value before it is trusted as `inner`; no new checksum logic is introduced. | Pass |
+| VI. Embedded PZN | The embedded PZN is still extracted and validated independently of the outer identifier (Article VI §20–22); this increment only changes how the embedded value is *chosen* for generation. | Pass |
+| VII. User Interface | The field follows the same `.field` pattern already used elsewhere in the Generate and Validate panels. | Pass |
+| VIII. Clipboard | Not applicable — unaffected. | Pass |
 
 No violations; no complexity tracking entries required.
 
@@ -54,11 +63,14 @@ No violations; no complexity tracking entries required.
 
 | Article | Check | Result |
 |---------|-------|--------|
-| I. Single-File Delivery | The caveat note reuses the existing result-block markup/CSS already inline in `index.html`; no new files. | Pass |
-| II. Zero External Dependencies | Plain conditionally-rendered text node; no new APIs or libraries. | Pass |
-| III. Algorithm Fidelity | Purely presentational — no checksum or validation logic changes. | Pass |
-| IV. Standards-First Identifiers | Reinforces (rather than weakens) the standards-first posture by making the non-standard, opt-in nature of EPL v2.3.x compatibility mode visible at the point of use, not just in a tooltip. | Pass |
-| V. Mobile-Accessible UI | The note is an always-visible text line (not hover-only), so it is reachable on touch viewports like the existing `<small>` hint. | Pass |
+| I. Delivery | The caveat note reuses the existing result-block markup/CSS already inline in `index.html`; no new files. | Pass |
+| II. Data & Privacy | Plain conditionally-rendered text node; no new data transmission or persistence. | Pass |
+| III. Supported Identifier Types | No new identifier type; purely presentational. | Pass |
+| IV. Generator–Validator Duality | Not applicable — no change to generation/validation logic. | Pass |
+| V. Algorithm Specifications | Purely presentational — no checksum or validation logic changes. | Pass |
+| VI. Embedded PZN | Not applicable — unaffected. | Pass |
+| VII. User Interface | Reinforces Article VII §24 (every operation MUST produce an explicit visual outcome) by making the non-standard, opt-in nature of EPL v2.3.x compatibility mode visible at the point of use, not just in a tooltip. | Pass |
+| VIII. Clipboard | Not applicable — unaffected. | Pass |
 
 No violations; no complexity tracking entries required.
 
@@ -427,7 +439,7 @@ Verify each item manually before marking the feature complete.
 - [x] The **EPL v2.3.x compatibility mode** option is shown only for `PPN`, defaults unchecked, and works independently of the invalid-generation, `9N`-prefix, and embed-PZN options
 - [x] The **EPL v2.3.x compatibility mode** option has a tooltip (`title` attribute) and an always-visible `<small>` hint explaining its purpose
 - [x] Combining **EPL v2.3.x compatibility mode** with invalid-generation produces a value that fails `validatePpn` (i.e. fails both checksum formulas)
-- [ ] Generating a valid `PPN` with **EPL v2.3.x compatibility mode** on shows a distinct caveat note beneath `Generated valid PPN` stating the value is valid only under EPL v2.3.x compatibility mode and uses a non-standard checksum; the note is absent when the mode is off or the result is invalid
+- [x] Generating a valid `PPN` with **EPL v2.3.x compatibility mode** on shows a distinct caveat note beneath `Generated valid PPN` stating the value is valid only under EPL v2.3.x compatibility mode and uses a non-standard checksum; the note is absent when the mode is off or the result is invalid
 - [x] The optional PZN-to-embed field is shown only for `NTIN` and `PPN` and has no effect for other types
 - [x] `generateNtin`/`generatePpn` accept an optional `customPzn` argument that, when a valid PZN string, is embedded verbatim (leading zeroes preserved) instead of a randomly generated inner PZN
 - [x] Entering a structurally invalid value in the PZN-to-embed field blocks generation and shows an error result instead

@@ -25,7 +25,7 @@ same way; `includePrefix` only controls whether the returned string is prefixed 
   required there — the new option is purely a generation-time concern.
 - Defaulting `includePrefix` to `true` preserves current behavior for any existing call site that
   doesn't pass the new argument (none currently exist outside the Generate panel, but this keeps
-  the function safe to call from the browser console per Constitution Principle I/II).
+  the function safe to call from the browser console per Constitution Article I §2).
 
 **Alternatives considered**:
 - *Separate `generatePpnWithoutPrefix()` function*: rejected — duplicates the checksum logic and
@@ -133,12 +133,12 @@ change for existing non-`eplCompat` call sites (the standard formula was already
 `<small class="hint">` line directly under the row containing the same explanatory text.
 
 **Rationale**:
-- Constitution Article V requires every interactive element to be fully usable on a 320px touch
-  viewport; a hover-only tooltip is not reliably reachable by touch, so the explanation must also
-  be visible without any interaction.
-- Constitution Article II (Zero External Dependencies) rules out a JS tooltip/popover library; the
-  `title` attribute requires no script and degrades gracefully (Operational Constraints: graceful
-  degradation) if unsupported.
+- Touch-friendly, mobile-accessible controls are a general design goal for this app (not a numbered
+  constitution rule); a hover-only tooltip is not reliably reachable by touch, so the explanation
+  must also be visible without any interaction.
+- Constitution Article I §3 (no external resources loaded at any time) rules out a JS tooltip/popover
+  library; the `title` attribute requires no script and degrades gracefully (Operational
+  Constraints: graceful degradation) if unsupported.
 - This mirrors the plain, semantic-HTML-first style already used throughout `index.html` (no
   custom widget components).
 
@@ -181,12 +181,12 @@ existing embed-a-valid-PZN checkbox. On Generate:
 
 **Rationale**:
 - Keeps `validatePzn` as the single source of truth for "is this a valid PZN" — no new validation
-  logic is introduced, satisfying Constitution Article III (no approximated/duplicated checksum
+  logic is introduced, satisfying Constitution Article V (no approximated/duplicated checksum
   rules).
 - Validating *before* calling the generator functions mirrors the codebase's existing convention
   of doing user-input error handling in the UI dispatch layer (see the empty-input guard in
   `runValidation()`) rather than inside the pure algorithm functions — keeps `generateNtin`/
-  `generatePpn` simple and directly console-callable per Constitution Principle I/II.
+  `generatePpn` simple and directly console-callable per Constitution Article I §2.
 - Making `customPzn` take precedence over `embedPzn` (rather than requiring them to be mutually
   exclusive in the UI) avoids adding new interaction states (e.g. disabling the checkbox); a
   blank field is an unambiguous "not provided" signal, so precedence is simple to reason about

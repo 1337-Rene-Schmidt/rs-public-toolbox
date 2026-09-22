@@ -198,6 +198,7 @@ A user shares or bookmarks a link that opens the tool directly in a specific mod
 - **SC-010**: For `PPN`, generating with **EPL v2.3.x compatibility mode** enabled produces a value that validates successfully in the app's own Validate mode and uses the checksum formula the EPL backend currently expects; combining this option with invalid-generation always produces a value that fails validation under both recognized checksum formulas.
 - **SC-011**: For `NTIN` and `PPN`, entering a structurally valid PZN into the optional PZN-to-embed field produces a generated value that embeds exactly that PZN; entering a structurally invalid value produces an error result and no generated value.
 - **SC-012**: Opening the app with a URL fragment such as `#mode=validate&package-identifier=ppn` activates the Validate tab with `PPN` preselected in both type selectors without any manual clicks; opening the app with no fragment, or with an unrecognized fragment, behaves exactly as it did before this increment.
+- **SC-013**: Generating a valid `PPN` with **EPL v2.3.x compatibility mode** enabled always shows a distinct caveat note beneath the success message; the note is absent whenever the mode is off or the generated result is invalid.
 
 ## Assumptions
 

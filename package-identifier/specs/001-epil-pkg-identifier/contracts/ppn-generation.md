@@ -2,10 +2,11 @@
 
 **Feature**: `001-epil-pkg-identifier`
 
-This app has no network/API surface (Constitution: *Zero External Dependencies*, *No network
-requests at runtime*). Its "public interface" is the set of pure functions in `index.html` that
-are directly callable from the browser console (Constitution Principle I). This contract covers
-the one function signature changed by this increment.
+This app has no network/API surface (Constitution Article I — Delivery: no external resources or
+network requests at runtime; Article II — Data & Privacy: no data ever transmitted to a server).
+Its "public interface" is the set of pure functions in `index.html` that are directly callable from
+the browser console (Constitution Article I). This contract covers the one function signature
+changed by this increment.
 
 > **Note**: A later increment adds a 5th parameter, `customPzn`, to `generatePpn`. See
 > [contracts/custom-pzn-embedding.md](custom-pzn-embedding.md) for that parameter and the
