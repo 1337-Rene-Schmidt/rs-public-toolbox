@@ -4,7 +4,7 @@
 **Spec**: [spec.md](spec.md)
 **Created**: 2026-05-21
 **Status**: Draft
-**Design docs**: [research.md](research.md) · [data-model.md](data-model.md) · [contracts/ppn-generation.md](contracts/ppn-generation.md) · [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md) · [quickstart.md](quickstart.md)
+**Design docs**: [research.md](research.md) · [data-model.md](data-model.md) · [contracts/ppn-generation.md](contracts/ppn-generation.md) · [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md) · [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md) · [quickstart.md](quickstart.md)
 
 ---
 
@@ -64,12 +64,29 @@ No violations; no complexity tracking entries required.
 
 ---
 
+## Constitution Check (increment: URL Anchor Deep Linking, FR-050–FR-053)
+
+| Article | Check | Result |
+|---------|-------|--------|
+| I. Delivery | Parsing uses the native `URLSearchParams` API against `location.hash`; no new files, no build step. | Pass |
+| II. Data & Privacy | The URL fragment is read-only, ephemeral browser state (never sent to a server, never written to storage); this is not persistence — it disappears on manual URL edit/clear like any other navigation state. | Pass |
+| III. Supported Identifier Types | No new identifier type; `package-identifier` values are validated against the existing five-type set before being applied. | Pass |
+| IV. Generator–Validator Duality | Not applicable — this increment only affects which tab/type is pre-selected, not any generate/validate algorithm. | Pass |
+| V. Algorithm Specifications | Not applicable — no checksum or algorithm changes. | Pass |
+| VI. Embedded PZN | Not applicable — unaffected. | Pass |
+| VII. User Interface | Still exactly two top-level modes (Generate/Validate); the anchor only pre-activates one of the two existing tabs via the existing tab-switch mechanism, and only pre-selects among the five existing identifier types — no new mode or type is introduced. Unrecognized values fall back silently to current defaults, consistent with §25's "explicit visible outcome" rule applying only to generate/validate operations, not passive page-load state. | Pass |
+| VIII. Clipboard | Not applicable — unaffected. | Pass |
+
+No violations; no complexity tracking entries required.
+
+---
+
 ## Overview
 
 A single self-contained `index.html` SPA that generates and validates five identifier types entirely in the browser: PZN, NTIN, GTIN, PPN, and PCID. The UI provides exactly two top-level modes, Generate and Validate, plus additional embedded-PZN inspection for NTIN and PPN.
 
-**Requirements covered**: FR-001 – FR-049, FR-042a
-**User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN)
+**Requirements covered**: FR-001 – FR-049, FR-042a, FR-050 – FR-053
+**User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN), US-4 (Deep link via URL anchor)
 
 ---
 
@@ -205,6 +222,17 @@ Inside the Validate panel, provide:
 - A freeform text input for the identifier value.
 - A Validate button.
 - A result block containing the validated value, result label, and an embedded-PZN container for NTIN/PPN sub-results.
+
+### T-2.5 · URL anchor parsing (deep linking)
+*Satisfies: FR-050, FR-051, FR-052, FR-053*
+
+Implement `applyAnchorState()` per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md):
+1. Read `location.hash` (strip the leading `#`) and parse it with `new URLSearchParams(...)`.
+2. Read the `mode` key; if its value case-insensitively equals `generate` or `validate`, activate that tab via the existing tab-switch logic (T-7.1); otherwise leave the current tab as-is.
+3. Read the `package-identifier` key; if its value case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or `pcid`, set both `#gen-type` and `#val-type` to that value and call `syncGenOptions()` so option-row visibility stays consistent; otherwise leave both selects unchanged.
+4. Ignore any other keys/values without error.
+
+Call `applyAnchorState()` once on initial script execution, and again on every `window.addEventListener('hashchange', applyAnchorState)` event, per FR-053.
 
 ---
 
@@ -363,6 +391,11 @@ Wire the Generate copy button to:
 - Silently ignore promise rejection.
 - Change the button label to `Copied!` and revert it to `Copy` after 1.5 seconds.
 
+### T-7.3 · URL anchor deep linking
+*Satisfies: FR-050, FR-051, FR-052, FR-053*
+
+Run `applyAnchorState()` (T-2.5) once after all Generate/Validate wiring (T-4.1–T-4.4, T-5.1–T-5.4) is in place, so that activating a tab or changing a type selector via the anchor exercises the exact same code paths (`syncGenOptions()`, tab-switch handler) as a manual click. Attach the `hashchange` listener at the same point.
+
 ---
 
 ## Delivery Checklist
@@ -419,5 +452,12 @@ Verify each item manually before marking the feature complete.
 - [x] Pressing Copy changes the label to `Copied!` and later restores `Copy`
 - [x] The app is a single self-contained `index.html` file with inline CSS and JavaScript
 - [x] The app runs without authentication, external assets, or persistent storage requirements
+
+**URL anchor deep linking**
+- [ ] Opening the app with no URL fragment behaves exactly as before this increment
+- [ ] `#mode=generate` / `#mode=validate` (case-insensitive) activates the corresponding tab on load
+- [ ] `#package-identifier=<type>` (case-insensitive, one of the five supported codes) preselects that type in both `#gen-type` and `#val-type` on load
+- [ ] An unrecognized `mode` or `package-identifier` value falls back to the default (Generate tab, PZN type) without an error state
+- [ ] Changing the URL fragment while the app is open (`hashchange`) re-applies the recognized `mode`/`package-identifier` state
 
 

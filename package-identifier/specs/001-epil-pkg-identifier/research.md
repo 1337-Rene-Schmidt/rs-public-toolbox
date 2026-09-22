@@ -252,4 +252,69 @@ line (`.caveat` class, not `.success`/`.error`) reading:
 
 None remaining for this increment.
 
+---
+
+# Research: URL Anchor Deep Linking for Mode and Identifier Type
+
+**Scope of this research pass**: FR-050–FR-053, SC-012 (deep-linking the app's initial tab and
+identifier-type selection via the URL fragment)
+
+## Background
+
+Users want to share/bookmark a link that opens the tool already in a specific mode (Generate or
+Validate) with a specific identifier type preselected, instead of always landing on the default
+Generate/PZN view. The request specifies a `key=value` fragment syntax: `#mode=generate` /
+`#mode=validate`, and `#package-identifier=<type>`, combinable in one fragment.
+
+## Decision: Parse the fragment with `URLSearchParams`, applied via the existing tab-switch and `syncGenOptions()` code paths
+
+**Decision**: On script load (and again on every `hashchange` event), read
+`new URLSearchParams(location.hash.replace(/^#/, ''))`:
+1. If the `mode` param case-insensitively equals `generate` or `validate`, invoke the exact same
+   logic the tab-button click handler uses to activate that tab (not a parallel implementation).
+2. If the `package-identifier` param case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or
+   `pcid`, set `#gen-type.value` and `#val-type.value` to that value and call `syncGenOptions()` so
+   option-row visibility (embed-PZN, `9N` prefix, EPL compat, PZN-to-embed) stays correct for the
+   preselected type.
+3. Any other key, or an unrecognized value for a recognized key, is ignored silently — the
+   corresponding default (Generate tab active, `PZN` selected) is left untouched.
+
+**Rationale**:
+- `URLSearchParams` is a native, zero-dependency browser API already `key=value`/`&`-oriented,
+  matching the user's requested syntax exactly with no bespoke parsing code — satisfies
+  Constitution Article I (single-file delivery, no new files) and keeps the parser trivially
+  correct for edge cases (extra `&`, missing `=`, URL-encoded values).
+- Reusing the existing tab-activation and `syncGenOptions()` code paths (rather than writing a
+  second, parallel state-setting routine) guarantees the anchor-driven state is indistinguishable
+  from a manual click, so no new UI states/bugs are introduced.
+- Applying `package-identifier` to *both* `#gen-type` and `#val-type` avoids ambiguity about which
+  panel a single URL parameter should target, and matches the natural reading of "preselect this
+  identifier type" regardless of which tab ends up active.
+- Falling back silently (no error banner) for unrecognized values matches Constitution Article VII
+  §24's scope — that rule governs generate/validate *operations*, not passive page-load state; a
+  malformed or foreign URL fragment is not a user-initiated operation.
+- Re-running the same logic on `hashchange` (FR-053) costs one `addEventListener` call and covers
+  browser back/forward navigation and manual fragment edits for free, without introducing any
+  two-way binding (the app never *writes* to `location.hash`).
+
+**Alternatives considered**:
+- *A bespoke `#/generate/ppn`-style path syntax*: rejected — the user explicitly requested
+  `key=value` fragment syntax (`#mode=generate`, `#package-identifier=ppn`), and `URLSearchParams`
+  already implements that syntax correctly.
+- *Query string (`?mode=...`) instead of the fragment (`#mode=...`)*: rejected — the user explicitly
+  asked for URL *anchors*; the fragment also avoids any possibility of being sent to a server if the
+  file is ever served from one, which is marginally more consistent with Article II (client-only
+  computation), though both forms are equally valid for a `file://`-served single-file app.
+- *Writing the current mode/type back into `location.hash` as the user interacts (two-way binding)*:
+  rejected — not requested; the user only asked for the anchor to *drive* initial/changed state, not
+  for the app to rewrite the URL on every click. Adding write-back would be scope creep beyond
+  FR-050–FR-053.
+- *A single combined key (e.g. `#state=validate,ppn`)*: rejected — diverges from the two distinct
+  keys (`mode`, `package-identifier`) the user explicitly specified.
+
+## Open questions
+
+None remaining for this increment.
+
+
 

@@ -1,6 +1,6 @@
-# Quickstart: Validate PPN Invalid / 9N-Prefix / EPL Compatibility / Custom PZN Embedding Options
+# Quickstart: Validate PPN Invalid / 9N-Prefix / EPL Compatibility / Custom PZN Embedding / URL Anchor Options
 
-**Feature**: `001-epil-pkg-identifier` — validates FR-039, FR-040, FR-041–FR-045, FR-042a, FR-046–FR-049, SC-009, SC-010, SC-011
+**Feature**: `001-epil-pkg-identifier` — validates FR-039, FR-040, FR-041–FR-045, FR-042a, FR-046–FR-049, FR-050–FR-053, SC-009, SC-010, SC-011, SC-012
 
 ## Prerequisites
 
@@ -133,4 +133,47 @@ invalid, and works independently of the `9N` prefix and embed-PZN options in any
    click **Generate** each time.
 2. **Expect**: behavior identical to before this increment — the embedded PZN is random (either a
    valid generated PZN or a random 8-digit number, per the checkbox).
+
+## Scenario 12 — No URL fragment behaves exactly as before
+
+1. Open `index.html` with no URL fragment (or `#` alone).
+2. **Expect**: the Generate tab is active and `PZN` is the selected type in both panels, exactly as
+   before this increment.
+
+## Scenario 13 — `mode` anchor activates the corresponding tab
+
+1. Open `index.html#mode=validate`.
+2. **Expect**: the Validate tab is active on load.
+3. Open `index.html#mode=generate`.
+4. **Expect**: the Generate tab is active on load.
+5. Open `index.html#mode=GENERATE` (mixed case).
+6. **Expect**: the Generate tab is active on load (case-insensitive match).
+
+## Scenario 14 — `package-identifier` anchor preselects the type in both panels
+
+1. Open `index.html#package-identifier=ppn`.
+2. **Expect**: `PPN` is preselected in the Generate type selector, and switching to the Validate
+   tab shows `PPN` preselected there too.
+3. Repeat with `#package-identifier=PZN`, `#package-identifier=NTIN`, `#package-identifier=GTIN`,
+   and `#package-identifier=PCID` (case-insensitive).
+4. **Expect**: the matching type is preselected in both panels each time.
+
+## Scenario 15 — Combined anchor and unrecognized-value fallback
+
+1. Open `index.html#mode=validate&package-identifier=ppn`.
+2. **Expect**: the Validate tab is active with `PPN` preselected in both type selectors.
+3. Open `index.html#mode=bogus&package-identifier=xyz`.
+4. **Expect**: no error is shown; the app falls back to the default Generate tab with `PZN`
+   selected, exactly as with no fragment at all.
+5. Open `index.html#foo=bar`.
+6. **Expect**: the unrelated key is ignored; defaults apply.
+
+## Scenario 16 — Changing the fragment while the app is open re-applies state
+
+1. Open `index.html` with no fragment (defaults apply).
+2. Using the browser's address bar (or `history.pushState`/manual edit + Enter), change the URL to
+   end in `#mode=validate&package-identifier=gtin` without a full page reload.
+3. **Expect**: the Validate tab becomes active and `GTIN` becomes the selected type in both panels,
+   without needing to reload the page.
+
 

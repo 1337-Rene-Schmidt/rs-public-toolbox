@@ -110,7 +110,8 @@ description: "Task list template for feature implementation"
 - [x] T054 [US2] Add a caveat note element in index.html inside the Generate result block, beneath the generated-value/result-label markup: `id="gen-caveat"` with class `caveat hidden`, containing the exact text `Note: valid only in EPL v2.3.x compatibility mode (non-standard checksum).` (depends on T021)
 - [x] T055 [US2] Add `.caveat` CSS in index.html: a visually distinct sub-line style (not reusing `.success`/`.error` styling), matching the existing sub-result visual pattern used for embedded-PZN blocks
 - [x] T056 [US2] Update the Generate button click handler in index.html: after rendering the PPN result, show `#gen-caveat` (remove `.hidden`) only when `type === 'ppn'`, `eplCompat === true`, and the result is valid (`wantInvalid === false`); otherwise keep/set it hidden (depends on T046, T054, T055)
-- [x] T057 Walk through [quickstart.md](quickstart.md) Scenario 6a against the running index.html: confirm the caveat note appears beneath `Generated valid PPN` only when **EPL v2.3.x compatibility mode** is on and the result is valid; confirm it is absent when the mode is off; confirm it is absent when the result is invalid (mode on + invalid on) (depends on T054–T056)
+
+**Checkpoint**: User Stories 1 AND 2 both work independently — generating any of the five types produces a labeled result, Copy provides visible feedback, PPN generation independently supports the invalid and `9N`-prefix options per FR-039/FR-040, PPN generation independently supports **EPL v2.3.x compatibility mode** per FR-041–FR-045, a valid EPL-v2.3.x-compatible PPN shows a distinct caveat note per FR-042a, and `NTIN`/`PPN` generation independently supports embedding a user-specified PZN per FR-046–FR-049
 
 ---
 
@@ -131,7 +132,24 @@ description: "Task list template for feature implementation"
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 6: User Story 4 - Deep Link to a Mode and Identifier Type via URL Anchor (Priority: P4)
+
+**Goal**: Let a user open the app with a URL fragment that preselects the active tab and/or identifier type, so a link can be shared/bookmarked to a specific mode/type combination.
+
+**Independent Test**: Open the app with a URL fragment such as `#mode=validate&package-identifier=ppn` and confirm the Validate tab is active with `PPN` preselected in both type selectors; open the app with no fragment and confirm it behaves exactly as before.
+
+### Implementation for User Story 4
+
+- [ ] T058 [US4] Implement `applyAnchorState()` in index.html per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md): parse `location.hash` (leading `#` stripped) with `new URLSearchParams(...)`; read the `mode` key and, when its value case-insensitively equals `generate` or `validate`, activate the corresponding tab by reusing the existing tab-button activation logic (not a parallel implementation); ignore an absent or unrecognized `mode` value without altering the current tab (depends on T005)
+- [ ] T059 [US4] Extend `applyAnchorState()` in index.html per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md): read the `package-identifier` key and, when its value case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or `pcid`, set both `#gen-type.value` and `#val-type.value` to that value and call `syncGenOptions()`; ignore an absent or unrecognized value without altering either select (depends on T022, T058)
+- [ ] T060 [US4] Call `applyAnchorState()` once during initial script evaluation (after tab-switch wiring (T005) and `syncGenOptions()` (T022) already exist) and register `window.addEventListener('hashchange', applyAnchorState)` in index.html so a recognized fragment change during the session re-applies the corresponding tab/type state without a full page reload (depends on T058, T059)
+- [ ] T061 [US4] Walk through [quickstart.md](quickstart.md) Scenarios 12–16 against the running index.html: confirm no-fragment behavior is unchanged; confirm `#mode=` and `#package-identifier=` (individually, combined, and case-insensitively) apply the correct tab/type on load; confirm unrecognized `mode`/`package-identifier` values fall back silently with no error state; confirm changing the fragment via `hashchange` re-applies state without a reload (depends on T058–T060)
+
+**Checkpoint**: User Story 4 is fully functional and independently testable — opening the app with a recognized URL fragment preselects the corresponding tab/type, an absent or unrecognized fragment leaves default behavior untouched, and `hashchange` re-applies recognized state during the session
+
+---
+
+## Phase 7: Polish & Cross-Cutting Concerns
 
 **Purpose**: Visual states and behaviors that span all three user stories
 
@@ -143,7 +161,7 @@ description: "Task list template for feature implementation"
 - [x] T040 Walk through [quickstart.md](quickstart.md) Scenarios 1–4 against the running index.html: confirm the `9N` prefix row is visible only for `PPN`; confirm all four combinations of invalid × prefix generate with the correct label and prefix presence; confirm Validate and embedded-PZN inspection are unaffected by `includePrefix` (depends on T036–T039)
 - [x] T047 Walk through [quickstart.md](quickstart.md) Scenarios 5–7 against the running index.html: confirm the **EPL v2.3.x compatibility mode** row is visible only for `PPN` with a tooltip/hint; confirm all four combinations of invalid × EPL-compat generate with the correct label; confirm an EPL-compat-generated PPN validates successfully in the Validate tab; confirm in the console that its checksum matches `_ppnCheckEplLegacy` directly (depends on T041–T046)
 - [x] T053 Walk through [quickstart.md](quickstart.md) Scenarios 8–11 against the running index.html: confirm the PZN-to-embed field is visible only for `NTIN`/`PPN`; confirm a valid custom PZN is embedded exactly (checked via the embedded-PZN sub-result and, for NTIN, by slicing the generated value); confirm an invalid custom PZN blocks generation and shows an error result for both types; confirm a blank field preserves the exact prior embed-PZN-checkbox behavior (depends on T048–T052)
-- [ ] T057 Walk through [quickstart.md](quickstart.md) Scenario 6a against the running index.html: confirm the caveat note appears beneath `Generated valid PPN` only when **EPL v2.3.x compatibility mode** is on and the result is valid; confirm it is absent when the mode is off; confirm it is absent when the result is invalid (mode on + invalid on) (depends on T054–T056)
+- [x] T057 Walk through [quickstart.md](quickstart.md) Scenario 6a against the running index.html: confirm the caveat note appears beneath `Generated valid PPN` only when **EPL v2.3.x compatibility mode** is on and the result is valid; confirm it is absent when the mode is off; confirm it is absent when the result is invalid (mode on + invalid on) (depends on T054–T056)
 
 ---
 
@@ -156,13 +174,15 @@ description: "Task list template for feature implementation"
 - **User Story 1 (Phase 3)**: Depends on Foundational completion
 - **User Story 2 (Phase 4)**: Depends on Foundational completion; independent of User Story 1
 - **User Story 3 (Phase 5)**: Depends on Foundational completion AND on the validate/generate dispatch points introduced in Phase 3 (T018) and Phase 4 (T023)
-- **Polish (Phase 6)**: Depends on all desired user stories being complete
+- **User Story 4 (Phase 6)**: Depends on Foundational completion AND on the tab-switch wiring (T005) and `syncGenOptions()` (T022) it reuses; independent of User Stories 1, 2, and 3 otherwise
+- **Polish (Phase 7)**: Depends on all desired user stories being complete
 
 ### User Story Dependencies
 
 - **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
 - **User Story 2 (P2)**: Can start after Foundational (Phase 2) - No dependencies on other stories
 - **User Story 3 (P3)**: Can start after Foundational (Phase 2), but its wiring task (T030) attaches to dispatch points from both US1 (T018) and US2 (T023)
+- **User Story 4 (P4)**: Can start after Foundational (Phase 2), but reuses the tab-switch handler (T005, Phase 1) and `syncGenOptions()` (T022, Phase 4) rather than introducing new activation/visibility logic
 
 ### Within Each User Story
 
@@ -198,6 +218,12 @@ description: "Task list template for feature implementation"
 - T056 extends the same Generate button click handler touched by T046 (reads `eplCompat`) and must run after that wiring exists
 - This increment extends User Story 2 only and is purely presentational; it does not change any validate/generate function signature, so User Story 1 and User Story 3 are unaffected
 
+### URL Anchor Deep Linking Increment (T058–T061)
+
+- T058 (`mode` parsing) and T059 (`package-identifier` parsing) both extend the same `applyAnchorState()` function and should land in sequence, not in parallel, consistent with the single-file convention; both must land before T060 (initial call + `hashchange` wiring), which must land before T061 (manual verification)
+- T058 depends on the tab-switch handler (T005) already existing; T059 depends on `syncGenOptions()` (T022) already existing — both are satisfied by the time Phase 6 begins
+- This increment is User Story 4 exclusively and introduces no new validate/generate function signature or markup; User Stories 1, 2, and 3 are entirely unaffected
+
 ---
 
 ## Implementation Strategy
@@ -216,7 +242,8 @@ description: "Task list template for feature implementation"
 2. Add User Story 1 (Validate) → Test independently → Deploy/Demo (MVP!)
 3. Add User Story 2 (Generate) → Test independently → Deploy/Demo
 4. Add User Story 3 (Embedded PZN Inspection) → Test independently → Deploy/Demo
-5. Each story adds value without breaking previous stories
+5. Add User Story 4 (URL Anchor Deep Linking) → Test independently → Deploy/Demo
+6. Each story adds value without breaking previous stories
 
 ---
 

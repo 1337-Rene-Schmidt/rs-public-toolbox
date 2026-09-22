@@ -72,6 +72,25 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 
 ---
 
+### User Story 4 — Deep Link to a Mode and Identifier Type via URL Anchor (Priority: P4)
+
+A user shares or bookmarks a link that opens the tool directly in a specific mode with a specific identifier type already selected, instead of always landing on the default Generate/PZN view.
+
+**Why this priority**: Deep linking is a convenience layer over the existing modes and types; it changes nothing about the underlying generation/validation behavior, so it is the lowest-priority increment.
+
+**Independent Test**: Open the app with a URL fragment such as `#mode=validate&package-identifier=ppn` and confirm the Validate tab is active with PPN preselected; open the app with no fragment and confirm it behaves exactly as before.
+
+**Acceptance Scenarios**:
+
+1. **Given** the URL fragment contains no `mode` and no `package-identifier` key, **When** the app loads, **Then** the app behaves exactly as it does today (Generate tab active, `PZN` selected).
+2. **Given** the URL fragment contains `mode=generate`, **When** the app loads, **Then** the Generate tab is active.
+3. **Given** the URL fragment contains `mode=validate`, **When** the app loads, **Then** the Validate tab is active.
+4. **Given** the URL fragment contains `package-identifier=<type>` where `<type>` case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or `pcid`, **When** the app loads, **Then** that identifier type is preselected in both the Generate and Validate type selectors.
+5. **Given** the URL fragment contains an unrecognized `mode` or `package-identifier` value, **When** the app loads, **Then** the corresponding default (Generate tab, `PZN` type) is used instead, without any error state being shown.
+6. **Given** the app is already open, **When** the URL fragment is changed (e.g. via browser back/forward navigation or a manual edit) to a recognized `mode`/`package-identifier` combination, **Then** the app re-applies the corresponding tab activation and type preselection.
+
+---
+
 ### Edge Cases
 
 - Formatting characters may be tolerated for some numeric identifier types.
@@ -80,6 +99,8 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - **EPL v2.3.x compatibility mode** may be combined with the invalid-generation option; the resulting value MUST still fail structural validation.
 - The optional PZN-to-embed field has no effect for identifier types other than `NTIN` and `PPN`.
 - Leading/trailing whitespace in the PZN-to-embed field is trimmed before validation; a whitespace-only value is treated as blank.
+- Additional unrecognized keys or malformed `key=value` pairs in the URL fragment MUST be ignored without affecting any recognized keys.
+- A URL fragment containing only one of `mode`/`package-identifier` MUST apply only that recognized part and leave the other at its default.
 - PCID invalid generation is not supported.
 - Copy may be unavailable in some environments; failures are silent.
 - The app does not auto-detect identifier type; the user must choose the intended type before generating or validating.
@@ -154,6 +175,13 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - **FR-048**: When the optional PZN-to-embed field is non-blank and structurally valid, `NTIN`/`PPN` generation MUST embed that exact value (including leading zeroes) regardless of the embed-a-valid-PZN checkbox's state.
 - **FR-049**: When the optional PZN-to-embed field is blank (or contains only whitespace), `NTIN`/`PPN` generation MUST behave exactly as previously specified (FR-016, FR-027, FR-029), governed solely by the embed-a-valid-PZN checkbox.
 
+### URL Anchor / Deep Linking
+
+- **FR-050**: On initial load, if the URL fragment contains a `mode` key whose value case-insensitively matches `generate` or `validate`, the system MUST activate the corresponding tab instead of the default `Generate` tab.
+- **FR-051**: On initial load, if the URL fragment contains a `package-identifier` key whose value case-insensitively matches one of the five supported identifier codes (`pzn`, `ntin`, `gtin`, `ppn`, `pcid`), the system MUST preselect that identifier type in both the Generate and Validate type selectors.
+- **FR-052**: The system MUST fall back to its default behavior (`Generate` tab active, `PZN` type selected) whenever the URL fragment is absent, empty, or contains a `mode` or `package-identifier` value that does not match a recognized value; unrecognized keys or values MUST be ignored without producing an error state.
+- **FR-053**: The system MUST re-apply the anchor-derived mode/type state (per FR-050/FR-051) whenever the URL fragment changes during the session (e.g. via browser back/forward navigation or a manually edited fragment), not only at initial page load.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -169,6 +197,7 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - **SC-009**: For `PPN`, generating with any combination of the invalid-generation and `9N`-prefix options produces a value whose structural validity matches the requested invalid state, regardless of whether the `9N` prefix is present.
 - **SC-010**: For `PPN`, generating with **EPL v2.3.x compatibility mode** enabled produces a value that validates successfully in the app's own Validate mode and uses the checksum formula the EPL backend currently expects; combining this option with invalid-generation always produces a value that fails validation under both recognized checksum formulas.
 - **SC-011**: For `NTIN` and `PPN`, entering a structurally valid PZN into the optional PZN-to-embed field produces a generated value that embeds exactly that PZN; entering a structurally invalid value produces an error result and no generated value.
+- **SC-012**: Opening the app with a URL fragment such as `#mode=validate&package-identifier=ppn` activates the Validate tab with `PPN` preselected in both type selectors without any manual clicks; opening the app with no fragment, or with an unrecognized fragment, behaves exactly as it did before this increment.
 
 ## Assumptions
 
@@ -180,3 +209,5 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 - The interface is intended to remain usable in a compact single-page layout without separate device-specific modes.
 - The EPL backend service currently validates PPN check digits using a legacy formula that differs from the ISO/IEC 7064 MOD 97-10 standard; **EPL v2.3.x compatibility mode** is a temporary interoperability accommodation for that discrepancy, not a redefinition of the PPN standard. Accepting either checksum formula in Validate mode marginally increases the chance of a false-positive structural validation for arbitrary pasted input, which is an accepted trade-off for this tool's structural-testing purpose.
 - A manually entered PZN-to-embed value is trusted only after passing the same structural validation as PZN Validate mode; no additional semantic, registry, or issuance verification is performed on it.
+- The URL fragment (`#...`) is parsed as query-string-style `key=value` pairs separated by `&`, mirroring `URLSearchParams` semantics; this is a presentation/deep-linking convenience only and introduces no new persistent state (Constitution Article II).
+- Anchor-derived preselection affects both the Generate and Validate type selectors simultaneously, since a single `package-identifier` value cannot address only one panel.

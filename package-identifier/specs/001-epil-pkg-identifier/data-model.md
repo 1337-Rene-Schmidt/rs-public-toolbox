@@ -77,3 +77,19 @@ occupies the same fixed-position slice regardless of its origin.
 Validation of `customPzn` (via `validatePzn`) happens once, at the UI dispatch layer, before the
 generator function is called — not inside `generateNtin`/`generatePpn` themselves — consistent with
 how the existing empty-Validate-input guard is handled outside `validatePzn`/etc.
+
+## URL Anchor State *(new)*
+
+Read-only, ephemeral state derived from `location.hash` at script load and re-derived on every
+`hashchange` event. Not persisted anywhere (no storage, no server round-trip) — it is simply an
+alternate way of setting the same `type`/tab state that a manual click would set.
+
+| Field | Type | Source | Notes |
+|-------|------|--------|-------|
+| `mode` | `'generate' \| 'validate' \| null` | `mode` key of `new URLSearchParams(location.hash.slice(1))`, case-insensitive | When recognized, activates the matching tab via the existing tab-click code path. `null`/unrecognized leaves the current (default `generate`) tab untouched. |
+| `packageIdentifier` | `'pzn' \| 'ntin' \| 'gtin' \| 'ppn' \| 'pcid' \| null` | `package-identifier` key of the same parsed fragment, case-insensitive | When recognized, sets **both** `#gen-type` and `#val-type` to this value and calls `syncGenOptions()`. `null`/unrecognized leaves both selects at their current (default `pzn`) value. |
+
+This state is applied through the exact same code paths as manual interaction (tab-button click
+handler, `syncGenOptions()`) — there is no separate rendering logic for anchor-derived state, and
+no field in the Generate Panel State or Validate panel table above is otherwise affected.
+
