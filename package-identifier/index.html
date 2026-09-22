@@ -223,6 +223,15 @@ select:focus, input[type="text"]:focus {
 .sub-result.success { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
 .sub-result.error   { background: #fff1f2; border-color: #fca5a5; color: #991b1b; }
 .sub-result.warn    { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+
+/* ── Caveat note (EPL v2.3.x compatibility) ───────────────── */
+.caveat {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+  font-style: italic;
+}
+.caveat.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -280,6 +289,7 @@ select:focus, input[type="text"]:focus {
         <span class="result-value" id="gen-value"></span>
         <span class="result-label" id="gen-label"></span><br>
         <button class="copy-btn" id="gen-copy">Copy</button>
+        <div id="gen-caveat" class="caveat hidden"></div>
         <div id="gen-embedded"></div>
       </div>
     </div>
@@ -597,6 +607,16 @@ document.getElementById('btn-generate').addEventListener('click', () => {
 
   showResult('gen', !wantInvalid, value, label);
   document.getElementById('gen-copy').dataset.copy = value;
+
+  // T056: Show/hide EPL v2.3.x compatibility caveat note
+  const caveatEl = document.getElementById('gen-caveat');
+  if (type === 'ppn' && eplCompat && !wantInvalid) {
+    caveatEl.textContent = 'Note: valid only in EPL v2.3.x compatibility mode (non-standard checksum).';
+    caveatEl.classList.remove('hidden');
+  } else {
+    caveatEl.textContent = '';
+    caveatEl.classList.add('hidden');
+  }
 
   if (type === 'ntin') embeddedEl.appendChild(buildEmbeddedPznBlock(extractPznFromNtin(value)));
   else if (type === 'ppn') embeddedEl.appendChild(buildEmbeddedPznBlock(extractPznFromPpn(value)));

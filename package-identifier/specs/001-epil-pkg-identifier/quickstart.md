@@ -1,6 +1,6 @@
 # Quickstart: Validate PPN Invalid / 9N-Prefix / EPL Compatibility / Custom PZN Embedding Options
 
-**Feature**: `001-epil-pkg-identifier` — validates FR-039, FR-040, FR-041–FR-045, FR-046–FR-049, SC-009, SC-010, SC-011
+**Feature**: `001-epil-pkg-identifier` — validates FR-039, FR-040, FR-041–FR-045, FR-042a, FR-046–FR-049, SC-009, SC-010, SC-011
 
 ## Prerequisites
 
@@ -78,6 +78,19 @@ For each combination below, select `PPN`, set the checkboxes accordingly, click 
 
 **Expect**: toggling EPL v2.3.x compatibility mode never changes whether the result is labelled valid or
 invalid, and works independently of the `9N` prefix and embed-PZN options in any combination.
+
+## Scenario 6a — EPL v2.3.x compatibility mode success shows a distinct caveat note
+
+1. Select `PPN`, turn **EPL v2.3.x compatibility mode** on, leave **invalid** off, and click
+   **Generate**.
+2. **Expect**: the `Generated valid PPN` success message is shown, plus a separate, distinctly
+   styled note reading `Note: valid only in EPL v2.3.x compatibility mode (non-standard checksum).`
+   beneath it.
+3. Turn **EPL v2.3.x compatibility mode** off and click **Generate** again.
+4. **Expect**: the `Generated valid PPN` success message is shown with no caveat note.
+5. Turn **EPL v2.3.x compatibility mode** back on, turn **invalid** on, and click **Generate**.
+6. **Expect**: the error result (`Generated invalid PPN — check digit deliberately corrupted`) is
+   shown with no caveat note.
 
 ## Scenario 7 — EPL-compatible values validate in the app and match the backend formula
 

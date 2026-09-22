@@ -211,7 +211,45 @@ existing embed-a-valid-PZN checkbox. On Generate:
 
 None remaining for this increment.
 
+---
+
+# Research: PPN Generation — EPL v2.3.x Compatibility Caveat Note
+
+**Scope of this research pass**: FR-042a (a distinct caveat note shown in the generation result
+area whenever EPL v2.3.x compatibility mode produces a structurally valid PPN)
+
+## Background
+
+FR-042 already requires a tooltip/hint on the **EPL v2.3.x compatibility mode** *option* explaining
+its non-standard, opt-in nature before generation. That explanation is easy to miss (it lives next
+to the checkbox, not next to the result). Clarification confirmed the result area itself should
+also carry a caveat, so a user reading only the result still learns the value is non-standard.
+
+## Decision: A distinct caveat sub-line beneath the success message, not merged into it
+
+**Decision**: Keep the existing `Generated valid PPN` success message unchanged. When
+`eplCompat === true` and the generated result is valid, render an additional, visually distinct
+line (`.caveat` class, not `.success`/`.error`) reading:
+`Note: valid only in EPL v2.3.x compatibility mode (non-standard checksum).`
+
+**Rationale**:
+- Preserves Constitution Article VII §24 (every operation shows an unambiguous success/failure
+  outcome) — the caveat is additive context, not a redefinition of the pass/fail state.
+- Mirrors the existing pattern for the embedded-PZN sub-result (Article VI): a secondary,
+  independently-styled block alongside the primary result rather than concatenated text.
+- Keeping the message text `Generated valid PPN` byte-for-byte unchanged avoids breaking any
+  existing string-matching test/documentation reference to that exact success message.
+
+**Alternatives considered**:
+- *Append the caveat into the same success message string*: rejected per clarification — conflates
+  two concerns (pass/fail outcome vs. interoperability caveat) into one string, and would break the
+  existing exact-match references to `Generated valid PPN` in quickstart.md and prior tests.
+- *Only show the caveat via the existing tooltip/hint on the checkbox*: rejected — does not satisfy
+  the request, since a user who already generated a value and is looking only at the result area
+  would not see it.
+
 ## Open questions
 
 None remaining for this increment.
+
 

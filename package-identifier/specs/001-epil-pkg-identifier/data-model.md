@@ -49,6 +49,13 @@ produce a value in the same `[00, 96]` range requiring the same zero-padding. `v
 accepts a value if *either* formula's checksum matches the trailing 2 digits, so the caller does
 not need to know which formula produced a given value when validating it.
 
+**PPN EPL v2.3.x compatibility caveat note** *(new)*: when the Generate panel renders a result for
+`type === 'ppn'` with `eplCompat === true` and the result is valid, an additional, distinctly
+styled caveat line is shown beneath the `Generated valid PPN` success message stating the value is
+valid only under EPL v2.3.x compatibility mode and uses a non-standard checksum. This is presentation
+state only — it does not change `generatePpn`'s return value, `validatePpn`'s behavior, or any
+other field in this data model.
+
 ## Embedded PZN Sub-Result
 
 | Field | Type | Notes |

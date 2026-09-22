@@ -107,8 +107,10 @@ description: "Task list template for feature implementation"
 - [x] T050 [US2] Add a PZN-to-embed text field row in index.html inside `.options-block`, after the embed-PZN checkbox row: `id="row-pzn-input"` wrapping `<input type="text" id="gen-pzn-input" placeholder="Optional: exact PZN to embed">`, hidden by default via the existing `.hidden` class pattern (depends on T021)
 - [x] T051 [US2] Update `syncGenOptions()` in index.html: show `row-pzn-input` only when the selected type is `ntin` or `ppn`, matching the existing embed-PZN row's visibility rule; do not alter the field's value when toggling visibility (depends on T022, T045, T050)
 - [x] T052 [US2] Update the Generate button click handler in index.html per [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md): when the selected type is `ntin` or `ppn`, read and trim `#gen-pzn-input`'s value as `customPzn`; if non-blank and `!validatePzn(customPzn)`, render an error result and return without calling any generator; otherwise pass `customPzn || null` as the new trailing argument to `generateNtin`/`generatePpn`; other types are unaffected (depends on T006, T046, T048, T049, T050, T051)
-
-**Checkpoint**: User Stories 1 AND 2 both work independently — generating any of the five types produces a labeled result, Copy provides visible feedback, PPN generation independently supports the invalid and `9N`-prefix options per FR-039/FR-040, PPN generation independently supports **EPL v2.3.x compatibility mode** per FR-041–FR-045, and `NTIN`/`PPN` generation independently supports embedding a user-specified PZN per FR-046–FR-049
+- [x] T054 [US2] Add a caveat note element in index.html inside the Generate result block, beneath the generated-value/result-label markup: `id="gen-caveat"` with class `caveat hidden`, containing the exact text `Note: valid only in EPL v2.3.x compatibility mode (non-standard checksum).` (depends on T021)
+- [x] T055 [US2] Add `.caveat` CSS in index.html: a visually distinct sub-line style (not reusing `.success`/`.error` styling), matching the existing sub-result visual pattern used for embedded-PZN blocks
+- [x] T056 [US2] Update the Generate button click handler in index.html: after rendering the PPN result, show `#gen-caveat` (remove `.hidden`) only when `type === 'ppn'`, `eplCompat === true`, and the result is valid (`wantInvalid === false`); otherwise keep/set it hidden (depends on T046, T054, T055)
+- [x] T057 Walk through [quickstart.md](quickstart.md) Scenario 6a against the running index.html: confirm the caveat note appears beneath `Generated valid PPN` only when **EPL v2.3.x compatibility mode** is on and the result is valid; confirm it is absent when the mode is off; confirm it is absent when the result is invalid (mode on + invalid on) (depends on T054–T056)
 
 ---
 
@@ -141,6 +143,7 @@ description: "Task list template for feature implementation"
 - [x] T040 Walk through [quickstart.md](quickstart.md) Scenarios 1–4 against the running index.html: confirm the `9N` prefix row is visible only for `PPN`; confirm all four combinations of invalid × prefix generate with the correct label and prefix presence; confirm Validate and embedded-PZN inspection are unaffected by `includePrefix` (depends on T036–T039)
 - [x] T047 Walk through [quickstart.md](quickstart.md) Scenarios 5–7 against the running index.html: confirm the **EPL v2.3.x compatibility mode** row is visible only for `PPN` with a tooltip/hint; confirm all four combinations of invalid × EPL-compat generate with the correct label; confirm an EPL-compat-generated PPN validates successfully in the Validate tab; confirm in the console that its checksum matches `_ppnCheckEplLegacy` directly (depends on T041–T046)
 - [x] T053 Walk through [quickstart.md](quickstart.md) Scenarios 8–11 against the running index.html: confirm the PZN-to-embed field is visible only for `NTIN`/`PPN`; confirm a valid custom PZN is embedded exactly (checked via the embedded-PZN sub-result and, for NTIN, by slicing the generated value); confirm an invalid custom PZN blocks generation and shows an error result for both types; confirm a blank field preserves the exact prior embed-PZN-checkbox behavior (depends on T048–T052)
+- [ ] T057 Walk through [quickstart.md](quickstart.md) Scenario 6a against the running index.html: confirm the caveat note appears beneath `Generated valid PPN` only when **EPL v2.3.x compatibility mode** is on and the result is valid; confirm it is absent when the mode is off; confirm it is absent when the result is invalid (mode on + invalid on) (depends on T054–T056)
 
 ---
 
@@ -188,6 +191,12 @@ description: "Task list template for feature implementation"
 - T048 (`generateNtin` 3rd parameter) and T049 (`generatePpn` 5th parameter) are independent of each other but both must land before T052 (dispatch wiring); T050 (markup) is independent of T048/T049 but must land before T051 (visibility wiring) and T052 (dispatch wiring)
 - T052 depends on `validatePzn` (T006) for its pre-generation guard, and on T046/T049 since it extends the same click handler and the same `generatePpn` call site touched by the EPL-compat increment
 - This increment extends User Story 2 only; User Story 1's Validate flow and User Story 3's embedded-PZN extraction (T027–T028) are unaffected because a custom-embedded PZN occupies the exact same fixed-position slice as a randomly generated one
+
+### PPN EPL v2.3.x Compatibility Caveat Note Increment (T054–T057)
+
+- T054 (markup) and T055 (CSS) are independent of each other but both must land before T056 (show/hide wiring); T056 must land before T057 (manual verification)
+- T056 extends the same Generate button click handler touched by T046 (reads `eplCompat`) and must run after that wiring exists
+- This increment extends User Story 2 only and is purely presentational; it does not change any validate/generate function signature, so User Story 1 and User Story 3 are unaffected
 
 ---
 

@@ -50,11 +50,25 @@ No violations; no complexity tracking entries required.
 
 ---
 
+## Constitution Check (increment: PPN EPL v2.3.x Compatibility Caveat Note, FR-042a)
+
+| Article | Check | Result |
+|---------|-------|--------|
+| I. Single-File Delivery | The caveat note reuses the existing result-block markup/CSS already inline in `index.html`; no new files. | Pass |
+| II. Zero External Dependencies | Plain conditionally-rendered text node; no new APIs or libraries. | Pass |
+| III. Algorithm Fidelity | Purely presentational — no checksum or validation logic changes. | Pass |
+| IV. Standards-First Identifiers | Reinforces (rather than weakens) the standards-first posture by making the non-standard, opt-in nature of EPL v2.3.x compatibility mode visible at the point of use, not just in a tooltip. | Pass |
+| V. Mobile-Accessible UI | The note is an always-visible text line (not hover-only), so it is reachable on touch viewports like the existing `<small>` hint. | Pass |
+
+No violations; no complexity tracking entries required.
+
+---
+
 ## Overview
 
 A single self-contained `index.html` SPA that generates and validates five identifier types entirely in the browser: PZN, NTIN, GTIN, PPN, and PCID. The UI provides exactly two top-level modes, Generate and Validate, plus additional embedded-PZN inspection for NTIN and PPN.
 
-**Requirements covered**: FR-001 – FR-049
+**Requirements covered**: FR-001 – FR-049, FR-042a
 **User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN)
 
 ---
@@ -172,7 +186,7 @@ Write the full markup in a single document with inline CSS and JavaScript only.
 - Two corresponding panels, with Generate active on initial load.
 
 ### T-2.3 · Generate panel structure
-*Satisfies: FR-002, FR-003, FR-014, FR-015, FR-016, FR-017, FR-039, FR-041, FR-042, FR-044*
+*Satisfies: FR-002, FR-003, FR-014, FR-015, FR-016, FR-017, FR-039, FR-041, FR-042, FR-042a, FR-044*
 
 Inside the Generate panel, provide:
 - A type selector with options for `PZN`, `NTIN`, `GTIN`, `PPN`, and `PCID`.
@@ -181,7 +195,7 @@ Inside the Generate panel, provide:
 - A `9N` prefix checkbox row (`row-ppn-prefix` / `gen-ppn-prefix`), checked by default, present in the markup and shown only for `PPN`. This option is independent of the invalid-generation checkbox.
 - An **EPL v2.3.x compatibility mode** checkbox row (`row-epl-compat` / `gen-epl-compat`), unchecked by default, present in the markup and shown only for `PPN`. This option is independent of the invalid-generation, `9N`-prefix, and embed-PZN checkboxes. Include a help affordance (e.g. a small info marker with a `title` attribute) plus an always-visible `<small>` hint line explaining: "Generates PPNs using the checksum the EPL backend currently expects, instead of the standard ISO/IEC 7064 formula."
 - A Generate button.
-- A result block containing generated value, result label, and Copy button.
+- A result block containing generated value, result label, Copy button, and (for `PPN` generated under EPL v2.3.x compatibility mode) a distinct caveat note element, separate from the success message, stating the value is valid only under EPL v2.3.x compatibility mode and uses a non-standard checksum.
 
 ### T-2.4 · Validate panel structure
 *Satisfies: FR-002, FR-004, FR-008, FR-009, FR-018, FR-019, FR-020*
@@ -214,12 +228,13 @@ Apply only the visual rules required by the current implementation. Do not inven
 - Checkbox rows for optional generator behavior.
 
 ### T-3.3 · Result banners
-*Satisfies: FR-006, FR-007, FR-037*
+*Satisfies: FR-006, FR-007, FR-037, FR-042a*
 
 - Hidden by default.
 - `.success` state for valid/generated-valid outcomes.
 - `.error` state for invalid/generated-invalid outcomes.
 - Sub-result variants for embedded PZN: success, error, and warn.
+- A `.caveat` sub-line variant (distinct from `.success`/`.error`) for the EPL v2.3.x compatibility mode note, rendered beneath the success message rather than merged into it.
 
 ### T-3.4 · Copy button feedback styling
 *Satisfies: FR-010, FR-013*
@@ -256,11 +271,12 @@ On Generate button click:
 6. Catch unexpected errors and render an error result.
 
 ### T-4.3 · Generate result labeling
-*Satisfies: FR-006, FR-014*
+*Satisfies: FR-006, FR-014, FR-042a*
 
 - Valid generation label: `Generated valid <TYPE>`.
 - Invalid generation label: `Generated invalid <TYPE> — check digit deliberately corrupted`.
 - Success/error banner class is driven by whether the user requested invalid generation.
+- When `type === 'ppn'`, `eplCompat === true`, and the result is valid (`wantInvalid === false`), additionally render a distinct caveat note beneath the `Generated valid PPN` message: `Note: valid only in EPL v2.3.x compatibility mode (non-standard checksum).` This note is omitted when `eplCompat === false` or when the result is invalid (the value already fails validation in that case).
 
 ### T-4.4 · Copy target storage
 *Satisfies: FR-010, FR-011*
@@ -378,6 +394,7 @@ Verify each item manually before marking the feature complete.
 - [x] The **EPL v2.3.x compatibility mode** option is shown only for `PPN`, defaults unchecked, and works independently of the invalid-generation, `9N`-prefix, and embed-PZN options
 - [x] The **EPL v2.3.x compatibility mode** option has a tooltip (`title` attribute) and an always-visible `<small>` hint explaining its purpose
 - [x] Combining **EPL v2.3.x compatibility mode** with invalid-generation produces a value that fails `validatePpn` (i.e. fails both checksum formulas)
+- [ ] Generating a valid `PPN` with **EPL v2.3.x compatibility mode** on shows a distinct caveat note beneath `Generated valid PPN` stating the value is valid only under EPL v2.3.x compatibility mode and uses a non-standard checksum; the note is absent when the mode is off or the result is invalid
 - [x] The optional PZN-to-embed field is shown only for `NTIN` and `PPN` and has no effect for other types
 - [x] `generateNtin`/`generatePpn` accept an optional `customPzn` argument that, when a valid PZN string, is embedded verbatim (leading zeroes preserved) instead of a randomly generated inner PZN
 - [x] Entering a structurally invalid value in the PZN-to-embed field blocks generation and shows an error result instead

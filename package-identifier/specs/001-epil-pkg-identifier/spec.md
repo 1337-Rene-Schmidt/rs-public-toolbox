@@ -8,6 +8,12 @@
 
 **Input**: User description: "Build a simple package identifier tool for generating and validating identifiers without requiring authentication."
 
+## Clarifications
+
+### Session 2026-09-22
+
+- Q: Where should the "only valid under EPL v2.3.x compatibility mode, non-standard checksum" caveat appear when a PPN is generated with EPL v2.3.x compatibility mode enabled? → A: Keep `Generated valid PPN` as-is and show a separate, clearly-labeled caveat note/line beneath it whenever EPL v2.3.x compatibility mode produced the value.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Validate an Identifier by Type (Priority: P1)
@@ -42,7 +48,7 @@ A developer, tester, or packaging operator needs to generate example identifiers
 3. **Given** the selected type is `PCID`, **When** the user views Generate options, **Then** the invalid-generation option is disabled and cleared.
 4. **Given** a value has been generated, **When** the user presses Copy, **Then** the app attempts to copy the generated value to the clipboard and temporarily changes the button label to `Copied!`.
 5. **Given** the selected Generate type is `PPN`, **When** the user toggles the `9N` prefix option, **Then** the generated value includes or omits the visible `9N` prefix accordingly, independent of the invalid-generation option.
-6. **Given** the selected Generate type is `PPN`, **When** the user enables **EPL v2.3.x compatibility mode** and presses Generate, **Then** the app produces a PPN whose check digit is computed so that the EPL backend's current PPN validation accepts it, whether or not the embed-PZN option is enabled.
+6. **Given** the selected Generate type is `PPN`, **When** the user enables **EPL v2.3.x compatibility mode** and presses Generate, **Then** the app produces a PPN whose check digit is computed so that the EPL backend's current PPN validation accepts it, whether or not the embed-PZN option is enabled, and the result area shows a distinct caveat note (separate from the `Generated valid PPN` success message) stating that the value is valid only under EPL v2.3.x compatibility mode and uses a non-standard checksum.
 7. **Given** the selected Generate type is `NTIN` or `PPN`, **When** the user enters a structurally valid PZN into the optional PZN-to-embed field and presses Generate, **Then** the app produces a value that embeds exactly that PZN.
 8. **Given** the selected Generate type is `NTIN` or `PPN`, **When** the user enters a structurally invalid value into the optional PZN-to-embed field and presses Generate, **Then** the app shows an error result and does not produce a generated value.
 
@@ -136,6 +142,7 @@ A user working with NTIN or PPN values needs to see whether the embedded PZN can
 
 - **FR-041**: In Generate mode, when the selected type is `PPN`, the system MUST provide an **EPL v2.3.x compatibility mode** option, independent of the invalid-generation and `9N`-prefix options, that computes the PPN's check digit using the checksum formula currently expected by the EPL backend service rather than the standard ISO/IEC 7064 MOD 97-10 checksum. This formula selection applies as the basis for the check digit regardless of whether the invalid-generation option is also enabled (see FR-045 for the invalid case).
 - **FR-042**: The system MUST provide explanatory help text (a tooltip) for the **EPL v2.3.x compatibility mode** option describing that it generates PPNs compatible with the EPL backend's current, non-standard PPN checksum validation, for interoperability until that backend defect is fixed.
+- **FR-042a**: When **EPL v2.3.x compatibility mode** produces a structurally valid PPN, the generation result area MUST show a distinct caveat note, separate from the `Generated valid PPN` success message, stating that the value is valid only under EPL v2.3.x compatibility mode and uses a non-standard checksum.
 - **FR-043**: `PPN` structural validation MUST accept a value whose checksum satisfies either the standard ISO/IEC 7064 MOD 97-10 formula or the EPL-compatible legacy formula, so that a PPN generated in EPL v2.3.x compatibility mode also validates successfully when checked in Validate mode.
 - **FR-044**: **EPL v2.3.x compatibility mode** MUST work with or without the embed-a-valid-PZN option enabled.
 - **FR-045**: When **EPL v2.3.x compatibility mode** is combined with the invalid-generation option, the produced value MUST fail structural validation under both the standard and the EPL-compatible checksum formulas.
