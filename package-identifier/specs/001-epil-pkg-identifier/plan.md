@@ -6,6 +6,13 @@
 **Status**: Draft
 **Design docs**: [research.md](research.md) · [data-model.md](data-model.md) · [contracts/ppn-generation.md](contracts/ppn-generation.md) · [contracts/custom-pzn-embedding.md](contracts/custom-pzn-embedding.md) · [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md) · [quickstart.md](quickstart.md)
 
+> **Constitution reference**: the "Constitution Check" tables below cite Article numbers (I–VIII)
+> defined in [derived-invariants.md](derived-invariants.md), a finer-grained, reverse-engineered
+> elaboration of the canonical project constitution at
+> [`.specify/memory/constitution.md`](/.specify/memory/constitution.md) (5 Principles). The two
+> documents do not conflict; see the mapping table in `derived-invariants.md` for how each Article
+> relates to a canonical Principle.
+
 ---
 
 ## Constitution Check (increment: PPN invalid × 9N-prefix options, FR-039/FR-040)
@@ -93,12 +100,29 @@ No violations; no complexity tracking entries required.
 
 ---
 
+## Constitution Check (increment: URL Anchor Write-Back, FR-054–FR-057)
+
+| Article | Check | Result |
+|---------|-------|--------|
+| I. Delivery | Write-back uses the native `history.replaceState` API from the existing tab-click and type-`change` handlers already inline in `index.html`; no new files, no build step. | Pass |
+| II. Data & Privacy | The URL fragment remains read/write ephemeral browser state only — `history.replaceState` never sends data to a server or writes to storage; this is not persistence, consistent with the read-side guarantee already established for FR-050–FR-053. | Pass |
+| III. Supported Identifier Types | No new identifier type; only the five existing codes are ever written to `package-identifier`. | Pass |
+| IV. Generator–Validator Duality | Not applicable — this increment only mirrors UI selection state into the fragment, no generate/validate algorithm is touched. | Pass |
+| V. Algorithm Specifications | Not applicable — no checksum or algorithm changes. | Pass |
+| VI. Embedded PZN | Not applicable — unaffected. | Pass |
+| VII. User Interface | Still exactly two top-level modes and five identifier types; write-back only mirrors state already reachable via manual clicks, introducing no new mode/type. | Pass |
+| VIII. Clipboard | Not applicable — unaffected. | Pass |
+
+No violations; no complexity tracking entries required.
+
+---
+
 ## Overview
 
 A single self-contained `index.html` SPA that generates and validates five identifier types entirely in the browser: PZN, NTIN, GTIN, PPN, and PCID. The UI provides exactly two top-level modes, Generate and Validate, plus additional embedded-PZN inspection for NTIN and PPN.
 
-**Requirements covered**: FR-001 – FR-049, FR-042a, FR-050 – FR-053
-**User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN), US-4 (Deep link via URL anchor)
+**Requirements covered**: FR-001 – FR-049, FR-042a, FR-050 – FR-057
+**User stories**: US-1 (Validate by type), US-2 (Generate by type), US-3 (Inspect embedded PZN), US-4 (Deep link via URL anchor, including write-back)
 
 ---
 
@@ -244,7 +268,7 @@ Implement `applyAnchorState()` per [contracts/url-anchor-deep-linking.md](contra
 3. Read the `package-identifier` key; if its value case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or `pcid`, set both `#gen-type` and `#val-type` to that value and call `syncGenOptions()` so option-row visibility stays consistent; otherwise leave both selects unchanged.
 4. Ignore any other keys/values without error.
 
-Call `applyAnchorState()` once on initial script execution, and again on every `window.addEventListener('hashchange', applyAnchorState)` event, per FR-053.
+The initial `applyAnchorState()` call and the `hashchange` listener are wired in T-7.3 (Phase 7), **not** here — the call MUST run after every `const` declaration and event-listener registration in the script (see T-7.3), otherwise the `package-identifier` branch reads `genTypeEl` before its `const` declaration and throws a temporal-dead-zone `ReferenceError` that aborts the whole script block.
 
 ---
 
@@ -403,10 +427,28 @@ Wire the Generate copy button to:
 - Silently ignore promise rejection.
 - Change the button label to `Copied!` and revert it to `Copy` after 1.5 seconds.
 
-### T-7.3 · URL anchor deep linking
+### T-7.3 · URL anchor deep linking (read side)
 *Satisfies: FR-050, FR-051, FR-052, FR-053*
 
-Run `applyAnchorState()` (T-2.5) once after all Generate/Validate wiring (T-4.1–T-4.4, T-5.1–T-5.4) is in place, so that activating a tab or changing a type selector via the anchor exercises the exact same code paths (`syncGenOptions()`, tab-switch handler) as a manual click. Attach the `hashchange` listener at the same point.
+Run `applyAnchorState()` (T-2.5) once after all Generate/Validate wiring (T-4.1–T-4.4, T-5.1–T-5.4) **and after every `const` declaration and event-listener registration in the script** is in place, so that activating a tab or changing a type selector via the anchor exercises the exact same code paths (`syncGenOptions()`, tab-switch handler) as a manual click. Attach the `hashchange` listener at the same point.
+
+> **Ordering constraint (NON-NEGOTIABLE):** the initial `applyAnchorState()` call MUST be the last statement of the script, after `genTypeEl`, `syncGenOptions()`, `writeAnchorState()`, and all `addEventListener` calls. Placing it earlier (e.g. next to the `hashchange` registration) makes the `package-identifier` branch read `genTypeEl` before its `const` declaration, throwing a temporal-dead-zone `ReferenceError` that aborts the entire script block — silently disabling both the read-side preselection and every write-back listener.
+
+### T-7.4 · URL anchor write-back (bidirectional sync)
+*Satisfies: FR-054, FR-055, FR-056, FR-057*
+
+Implement `writeAnchorState()` per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md):
+1. Parse the existing `location.hash` (strip the leading `#`) with `new URLSearchParams(...)` so any unrelated `key=value` pairs are preserved (FR-056).
+2. Read the currently active tab's `data-tab` value and set it as the `mode` key (FR-054).
+3. Read the identifier-type selector belonging to the active panel (`#gen-type` when Generate is active, `#val-type` when Validate is active) and set it as the `package-identifier` key (FR-055).
+4. Call `history.replaceState(null, '', location.pathname + location.search + '#' + params.toString())` — this updates the address bar in place without reloading the page, without adding a browser-history entry, and without firing `hashchange`, so it cannot re-trigger `applyAnchorState()` (FR-057, no read/write feedback loop).
+
+Invoke `writeAnchorState()`:
+- at the end of the tab-button click handler (T-7.1), after the new tab/panel is activated;
+- at the end of `#gen-type`'s `change` handler (after `syncGenOptions()` runs);
+- from a new `#val-type` `change` handler.
+
+**Done when**: clicking a tab writes `mode`; changing either type selector writes `package-identifier`; an unrelated existing key (e.g. `#foo=bar`) survives a write-back; and repeated interaction produces no flicker, unexpected tab switch, or console error.
 
 ---
 
@@ -466,10 +508,17 @@ Verify each item manually before marking the feature complete.
 - [x] The app runs without authentication, external assets, or persistent storage requirements
 
 **URL anchor deep linking**
-- [ ] Opening the app with no URL fragment behaves exactly as before this increment
-- [ ] `#mode=generate` / `#mode=validate` (case-insensitive) activates the corresponding tab on load
-- [ ] `#package-identifier=<type>` (case-insensitive, one of the five supported codes) preselects that type in both `#gen-type` and `#val-type` on load
-- [ ] An unrecognized `mode` or `package-identifier` value falls back to the default (Generate tab, PZN type) without an error state
-- [ ] Changing the URL fragment while the app is open (`hashchange`) re-applies the recognized `mode`/`package-identifier` state
+- [x] Opening the app with no URL fragment behaves exactly as before this increment
+- [x] `#mode=generate` / `#mode=validate` (case-insensitive) activates the corresponding tab on load
+- [x] `#package-identifier=<type>` (case-insensitive, one of the five supported codes) preselects that type in both `#gen-type` and `#val-type` on load
+- [x] An unrecognized `mode` or `package-identifier` value falls back to the default (Generate tab, PZN type) without an error state
+- [x] Changing the URL fragment while the app is open (`hashchange`) re-applies the recognized `mode`/`package-identifier` state
+
+**URL anchor write-back**
+- [x] Clicking a tab button updates the fragment's `mode` key to the newly active tab's lowercase name without a page reload or a new browser-history entry
+- [x] Changing the Generate type selector updates the fragment's `package-identifier` key to the newly selected type's lowercase code
+- [x] Changing the Validate type selector updates the fragment's `package-identifier` key to the newly selected type's lowercase code
+- [x] Write-back preserves any unrelated `key=value` pairs already present in the fragment (e.g. `#foo=bar`)
+- [x] Write-back does not re-trigger `applyAnchorState()` (no read/write feedback loop — `history.replaceState` does not fire `hashchange`)
 
 

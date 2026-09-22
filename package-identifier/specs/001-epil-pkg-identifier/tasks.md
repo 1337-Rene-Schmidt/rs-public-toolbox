@@ -7,7 +7,7 @@ description: "Task list template for feature implementation"
 
 **Input**: Design documents from `/specs/001-epil-pkg-identifier/`
 
-**Prerequisites**: plan.md (required), spec.md (required for user stories), constitution.md
+**Prerequisites**: plan.md (required), spec.md (required for user stories), [.specify/memory/constitution.md](/.specify/memory/constitution.md) (canonical constitution), [derived-invariants.md](derived-invariants.md) (implementation-level detail)
 
 **Tests**: Not requested in spec.md; no test tasks are included.
 
@@ -140,12 +140,18 @@ description: "Task list template for feature implementation"
 
 ### Implementation for User Story 4
 
-- [ ] T058 [US4] Implement `applyAnchorState()` in index.html per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md): parse `location.hash` (leading `#` stripped) with `new URLSearchParams(...)`; read the `mode` key and, when its value case-insensitively equals `generate` or `validate`, activate the corresponding tab by reusing the existing tab-button activation logic (not a parallel implementation); ignore an absent or unrecognized `mode` value without altering the current tab (depends on T005)
-- [ ] T059 [US4] Extend `applyAnchorState()` in index.html per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md): read the `package-identifier` key and, when its value case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or `pcid`, set both `#gen-type.value` and `#val-type.value` to that value and call `syncGenOptions()`; ignore an absent or unrecognized value without altering either select (depends on T022, T058)
-- [ ] T060 [US4] Call `applyAnchorState()` once during initial script evaluation (after tab-switch wiring (T005) and `syncGenOptions()` (T022) already exist) and register `window.addEventListener('hashchange', applyAnchorState)` in index.html so a recognized fragment change during the session re-applies the corresponding tab/type state without a full page reload (depends on T058, T059)
-- [ ] T061 [US4] Walk through [quickstart.md](quickstart.md) Scenarios 12–16 against the running index.html: confirm no-fragment behavior is unchanged; confirm `#mode=` and `#package-identifier=` (individually, combined, and case-insensitively) apply the correct tab/type on load; confirm unrecognized `mode`/`package-identifier` values fall back silently with no error state; confirm changing the fragment via `hashchange` re-applies state without a reload (depends on T058–T060)
+- [x] T058 [US4] Implement `applyAnchorState()` in index.html per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md): parse `location.hash` (leading `#` stripped) with `new URLSearchParams(...)`; read the `mode` key and, when its value case-insensitively equals `generate` or `validate`, activate the corresponding tab by reusing the existing tab-button activation logic (not a parallel implementation); ignore an absent or unrecognized `mode` value without altering the current tab (depends on T005)
+- [x] T059 [US4] Extend `applyAnchorState()` in index.html per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md): read the `package-identifier` key and, when its value case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or `pcid`, set both `#gen-type.value` and `#val-type.value` to that value and call `syncGenOptions()`; ignore an absent or unrecognized value without altering either select (depends on T022, T058)
+- [x] T060 [US4] Call `applyAnchorState()` once during initial script evaluation (after tab-switch wiring (T005) and `syncGenOptions()` (T022) already exist) and register `window.addEventListener('hashchange', applyAnchorState)` in index.html so a recognized fragment change during the session re-applies the corresponding tab/type state without a full page reload (depends on T058, T059)
+- [x] T061 [US4] Walk through [quickstart.md](quickstart.md) Scenarios 12–16 against the running index.html: confirm no-fragment behavior is unchanged; confirm `#mode=` and `#package-identifier=` (individually, combined, and case-insensitively) apply the correct tab/type on load; confirm unrecognized `mode`/`package-identifier` values fall back silently with no error state; confirm changing the fragment via `hashchange` re-applies state without a reload (depends on T058–T060)
+- [x] T062 [US4] Implement `writeAnchorState()` in index.html per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md): read the currently active tab's `data-tab` value as `mode`, read the identifier-type selector belonging to that same active tab (`#gen-type` when Generate is active, `#val-type` when Validate is active) as `package-identifier`, merge both keys into a `URLSearchParams` seeded from the existing parsed `location.hash` (so any other existing key is preserved unchanged), and call `history.replaceState(null, '', '#' + params.toString())` (depends on T005, T060)
+- [x] T063 [US4] Call `writeAnchorState()` in index.html at the end of the tab-button click handler, after the new tab/panel is activated, so clicking a tab writes the new `mode` (and the now-active panel's current type) to the fragment without reloading the page or creating a browser-history entry (depends on T062)
+- [x] T064 [US4] Extend the `#gen-type` `change` listener in index.html to also call `writeAnchorState()` (after `syncGenOptions()` runs) so changing the Generate type selector writes the new `package-identifier` to the fragment (depends on T062)
+- [x] T065 [US4] Add a `change` event listener on `#val-type` in index.html that calls `writeAnchorState()` so changing the Validate type selector writes the new `package-identifier` to the fragment (depends on T062)
+- [x] T066 [US4] Verify in index.html that `applyAnchorState()`'s reads and `writeAnchorState()`'s `history.replaceState` calls cannot feed back into each other: `replaceState` MUST NOT fire `hashchange`, so no guard flag is needed; confirm this holds by inspection per [contracts/url-anchor-deep-linking.md](contracts/url-anchor-deep-linking.md) (depends on T062–T065)
+- [x] T067 [US4] Walk through [quickstart.md](quickstart.md) Scenarios 17–20 against the running index.html: confirm clicking a tab writes `mode` to the fragment without a page reload or new browser-history entry; confirm changing either type selector writes `package-identifier`; confirm an unrelated existing fragment key (e.g. `#foo=bar`) is preserved across write-backs; confirm repeated interaction produces no flicker, unexpected tab switch, or console error (no read/write feedback loop) (depends on T062–T066)
 
-**Checkpoint**: User Story 4 is fully functional and independently testable — opening the app with a recognized URL fragment preselects the corresponding tab/type, an absent or unrecognized fragment leaves default behavior untouched, and `hashchange` re-applies recognized state during the session
+**Checkpoint**: User Story 4 is fully functional and independently testable — opening the app with a recognized URL fragment preselects the corresponding tab/type, an absent or unrecognized fragment leaves default behavior untouched, `hashchange` re-applies recognized state during the session, and the fragment is now kept in sync as the user switches tabs or changes either identifier-type selector, without reloading the page, adding history entries, or disturbing unrelated fragment keys
 
 ---
 
@@ -223,6 +229,12 @@ description: "Task list template for feature implementation"
 - T058 (`mode` parsing) and T059 (`package-identifier` parsing) both extend the same `applyAnchorState()` function and should land in sequence, not in parallel, consistent with the single-file convention; both must land before T060 (initial call + `hashchange` wiring), which must land before T061 (manual verification)
 - T058 depends on the tab-switch handler (T005) already existing; T059 depends on `syncGenOptions()` (T022) already existing — both are satisfied by the time Phase 6 begins
 - This increment is User Story 4 exclusively and introduces no new validate/generate function signature or markup; User Stories 1, 2, and 3 are entirely unaffected
+
+### URL Anchor Write-Back Increment (T062–T067)
+
+- T062 (`writeAnchorState()`) must land before T063 (tab-click wiring), T064 (`#gen-type` wiring), and T065 (`#val-type` wiring); T063–T065 are independent of each other but should still be applied one at a time, consistent with the single-file convention; T066 (feedback-loop verification) and T067 (manual verification) both depend on T062–T065 landing first
+- T062 depends on the tab-switch handler (T005) and `applyAnchorState()`/its initial call (T060) already existing, since `writeAnchorState()` reads the same active-tab/type-selector state `applyAnchorState()` writes
+- This increment is User Story 4 exclusively and introduces no new validate/generate function signature; it extends the existing tab-click and `#gen-type` handlers and adds one new `#val-type` listener, none of which affect User Stories 1, 2, or 3
 
 ---
 

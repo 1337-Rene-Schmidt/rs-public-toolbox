@@ -1,11 +1,37 @@
-# Constitution: Package Identifier Tool
+# Derived Invariants: Package Identifier Tool
 
 **Derived from**: `package-identifier/index.html`
 **Derived**: 2026-05-21
+**Renamed from `constitution.md`**: 2026-09-22 (see note below)
 
-This document states the non-negotiable invariants of the Package Identifier Tool.
-Every rule here is directly observable in the current implementation and MUST hold
-in any future version of the tool.
+> **This is not the project constitution.** The ratified, canonical constitution governing this
+> repository lives at [`.specify/memory/constitution.md`](/.specify/memory/constitution.md) and
+> defines 5 Principles (I. Single-File Delivery, II. Zero External Dependencies, III. Algorithm
+> Fidelity, IV. Standards-First Identifiers, V. Mobile-Accessible UI). This document is a
+> finer-grained, reverse-engineered elaboration of implementation-level invariants observed in
+> `index.html`; it does not supersede, amend, or conflict with the canonical constitution. Where
+> both documents speak to the same behavior, the canonical constitution's Principles are
+> authoritative. `plan.md`'s "Constitution Check" tables cite the Article numbers below for
+> traceability to specific implementation-level rules; see the mapping table for how each Article
+> relates to a canonical Principle.
+
+## Mapping to the canonical constitution
+
+| Article here | Canonical Principle(s) it elaborates |
+|---|---|
+| I. Delivery | I. Single-File Delivery, II. Zero External Dependencies |
+| II. Data & Privacy | II. Zero External Dependencies (Operational Constraints: No persistence, No network requests) |
+| III. Supported Identifier Types | IV. Standards-First Identifiers |
+| IV. Generator–Validator Duality | III. Algorithm Fidelity |
+| V. Algorithm Specifications | III. Algorithm Fidelity |
+| VI. Embedded PZN | III. Algorithm Fidelity (implementation detail specific to NTIN/PPN) |
+| VII. User Interface | V. Mobile-Accessible UI (implementation detail; no canonical Principle governs "exactly two modes" specifically — treat as project convention, not a constitutional MUST) |
+| VIII. Clipboard | Operational Constraints: Graceful degradation |
+
+This document states implementation-level invariants of the Package Identifier Tool.
+Every rule here is directly observable in the current implementation and SHOULD hold
+in any future version of the tool, subject to the canonical constitution taking precedence
+in case of any conflict.
 
 ---
 

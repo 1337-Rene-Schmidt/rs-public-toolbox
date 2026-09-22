@@ -1,6 +1,6 @@
 # Quickstart: Validate PPN Invalid / 9N-Prefix / EPL Compatibility / Custom PZN Embedding / URL Anchor Options
 
-**Feature**: `001-epil-pkg-identifier` — validates FR-039, FR-040, FR-041–FR-045, FR-042a, FR-046–FR-049, FR-050–FR-053, SC-009, SC-010, SC-011, SC-012
+**Feature**: `001-epil-pkg-identifier` — validates FR-039, FR-040, FR-041–FR-045, FR-042a, FR-046–FR-049, FR-050–FR-057, SC-009, SC-010, SC-011, SC-012, SC-014
 
 ## Prerequisites
 
@@ -175,5 +175,36 @@ invalid, and works independently of the `9N` prefix and embed-PZN options in any
    end in `#mode=validate&package-identifier=gtin` without a full page reload.
 3. **Expect**: the Validate tab becomes active and `GTIN` becomes the selected type in both panels,
    without needing to reload the page.
+
+## Scenario 17 — Clicking a tab writes `mode` back to the fragment
+
+1. Open `index.html` with no fragment.
+2. Click the **Validate** tab.
+3. **Expect**: the address bar now ends in `#mode=validate`, the page did not reload, and clicking
+   the browser **Back** button does not undo the tab switch (no new history entry was created).
+4. Click the **Generate** tab.
+5. **Expect**: the fragment updates to `#mode=generate`.
+
+## Scenario 18 — Changing a type selector writes `package-identifier` back to the fragment
+
+1. On the **Generate** tab, change the identifier-type selector to `PPN`.
+2. **Expect**: the address bar's fragment now includes `package-identifier=ppn`.
+3. Switch to the **Validate** tab and change its identifier-type selector to `GTIN`.
+4. **Expect**: the fragment updates to include `package-identifier=gtin`.
+
+## Scenario 19 — Write-back preserves unrelated fragment keys
+
+1. Open `index.html#foo=bar`.
+2. Switch tabs and change a type selector.
+3. **Expect**: the fragment updates `mode`/`package-identifier` as expected, and `foo=bar` remains
+   present in the fragment throughout.
+
+## Scenario 20 — Write-back does not cause a read/write feedback loop
+
+1. Open `index.html` with no fragment.
+2. Click the **Validate** tab, then change its type selector several times in a row.
+3. **Expect**: each change updates the fragment correctly and promptly; no visible flicker,
+   unexpected tab switch, or console error occurs (confirming write-back does not re-trigger
+   `applyAnchorState()`).
 
 

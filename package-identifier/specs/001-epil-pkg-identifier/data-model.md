@@ -80,16 +80,26 @@ how the existing empty-Validate-input guard is handled outside `validatePzn`/etc
 
 ## URL Anchor State *(new)*
 
-Read-only, ephemeral state derived from `location.hash` at script load and re-derived on every
-`hashchange` event. Not persisted anywhere (no storage, no server round-trip) — it is simply an
-alternate way of setting the same `type`/tab state that a manual click would set.
+Ephemeral state derived from and mirrored to `location.hash`. Read at script load and re-derived
+on every `hashchange` event; written back to the fragment (via `history.replaceState`, which does
+not fire `hashchange`) whenever the user switches tabs or changes an identifier-type selector. Not
+persisted anywhere (no storage, no server round-trip) — it is simply an alternate way of setting,
+and a mirror of, the same `type`/tab state that a manual click would set.
 
 | Field | Type | Source | Notes |
 |-------|------|--------|-------|
-| `mode` | `'generate' \| 'validate' \| null` | `mode` key of `new URLSearchParams(location.hash.slice(1))`, case-insensitive | When recognized, activates the matching tab via the existing tab-click code path. `null`/unrecognized leaves the current (default `generate`) tab untouched. |
-| `packageIdentifier` | `'pzn' \| 'ntin' \| 'gtin' \| 'ppn' \| 'pcid' \| null` | `package-identifier` key of the same parsed fragment, case-insensitive | When recognized, sets **both** `#gen-type` and `#val-type` to this value and calls `syncGenOptions()`. `null`/unrecognized leaves both selects at their current (default `pzn`) value. |
+| `mode` | `'generate' \| 'validate' \| null` | `mode` key of `new URLSearchParams(location.hash.slice(1))`, case-insensitive | **Read**: when recognized, activates the matching tab via the existing tab-click code path. `null`/unrecognized leaves the current (default `generate`) tab untouched. **Write**: set to the newly active tab's lowercase name whenever the user clicks a tab button. |
+| `packageIdentifier` | `'pzn' \| 'ntin' \| 'gtin' \| 'ppn' \| 'pcid' \| null` | `package-identifier` key of the same parsed fragment, case-insensitive | **Read**: when recognized, sets **both** `#gen-type` and `#val-type` to this value and calls `syncGenOptions()`. `null`/unrecognized leaves both selects at their current (default `pzn`) value. **Write**: set to whichever type selector (`#gen-type` or `#val-type`) the user just changed, using its new lowercase value. |
 
 This state is applied through the exact same code paths as manual interaction (tab-button click
 handler, `syncGenOptions()`) — there is no separate rendering logic for anchor-derived state, and
 no field in the Generate Panel State or Validate panel table above is otherwise affected.
+
+**Write-back mechanism** *(new)*: `writeAnchorState()` reads the currently active tab and the
+just-changed type selector, merges `mode`/`package-identifier` into the existing parsed
+`URLSearchParams` (preserving any other keys already present), and calls
+`history.replaceState(null, '', '#' + params.toString())`. Because `replaceState` does not fire
+`hashchange`, calling it from the tab-click/type-`change` handlers cannot re-trigger
+`applyAnchorState()` — read and write paths do not feed back into each other (FR-057).
+
 

@@ -88,6 +88,10 @@ A user shares or bookmarks a link that opens the tool directly in a specific mod
 4. **Given** the URL fragment contains `package-identifier=<type>` where `<type>` case-insensitively matches `pzn`, `ntin`, `gtin`, `ppn`, or `pcid`, **When** the app loads, **Then** that identifier type is preselected in both the Generate and Validate type selectors.
 5. **Given** the URL fragment contains an unrecognized `mode` or `package-identifier` value, **When** the app loads, **Then** the corresponding default (Generate tab, `PZN` type) is used instead, without any error state being shown.
 6. **Given** the app is already open, **When** the URL fragment is changed (e.g. via browser back/forward navigation or a manual edit) to a recognized `mode`/`package-identifier` combination, **Then** the app re-applies the corresponding tab activation and type preselection.
+7. **Given** the app is on the default view with no URL fragment, **When** the user clicks the `Validate` tab, **Then** the URL fragment updates to include `mode=validate` without reloading the page or adding a new browser-history entry.
+8. **Given** the app is showing the Generate panel, **When** the user changes the Generate identifier-type selector to a different supported type, **Then** the URL fragment updates to include `package-identifier=<type>` reflecting that selection.
+9. **Given** the app is showing the Validate panel, **When** the user changes the Validate identifier-type selector to a different supported type, **Then** the URL fragment updates to include `package-identifier=<type>` reflecting that selection.
+10. **Given** the URL fragment contains an unrelated key (e.g. `#foo=bar`), **When** the user switches tabs or changes an identifier-type selector, **Then** the app updates only the `mode`/`package-identifier` keys and leaves `foo=bar` intact.
 
 ---
 
@@ -101,6 +105,7 @@ A user shares or bookmarks a link that opens the tool directly in a specific mod
 - Leading/trailing whitespace in the PZN-to-embed field is trimmed before validation; a whitespace-only value is treated as blank.
 - Additional unrecognized keys or malformed `key=value` pairs in the URL fragment MUST be ignored without affecting any recognized keys.
 - A URL fragment containing only one of `mode`/`package-identifier` MUST apply only that recognized part and leave the other at its default.
+- Anchor-derived state application (reading the fragment on load/`hashchange`) MUST NOT itself trigger a write-back update, avoiding an infinite read/write loop.
 - PCID invalid generation is not supported.
 - Copy may be unavailable in some environments; failures are silent.
 - The app does not auto-detect identifier type; the user must choose the intended type before generating or validating.
@@ -182,6 +187,13 @@ A user shares or bookmarks a link that opens the tool directly in a specific mod
 - **FR-052**: The system MUST fall back to its default behavior (`Generate` tab active, `PZN` type selected) whenever the URL fragment is absent, empty, or contains a `mode` or `package-identifier` value that does not match a recognized value; unrecognized keys or values MUST be ignored without producing an error state.
 - **FR-053**: The system MUST re-apply the anchor-derived mode/type state (per FR-050/FR-051) whenever the URL fragment changes during the session (e.g. via browser back/forward navigation or a manually edited fragment), not only at initial page load.
 
+### URL Anchor Write-Back
+
+- **FR-054**: When the user activates a tab via its tab button (`Generate` or `Validate`), the system MUST update the URL fragment's `mode` key to the newly active tab's lowercase name, using a mechanism that neither reloads the page nor creates a new browser-history entry.
+- **FR-055**: When the user changes the value of either identifier-type selector (the Generate panel's or the Validate panel's), the system MUST update the URL fragment's `package-identifier` key to the newly selected type's lowercase code, using the same non-reloading, non-history-creating mechanism as FR-054.
+- **FR-056**: URL fragment write-back (FR-054/FR-055) MUST preserve any other existing `key=value` pairs already present in the fragment that are not `mode` or `package-identifier`.
+- **FR-057**: URL fragment write-back MUST NOT itself trigger the fragment-change re-application described in FR-053 (no feedback loop between reading and writing anchor state).
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -199,6 +211,7 @@ A user shares or bookmarks a link that opens the tool directly in a specific mod
 - **SC-011**: For `NTIN` and `PPN`, entering a structurally valid PZN into the optional PZN-to-embed field produces a generated value that embeds exactly that PZN; entering a structurally invalid value produces an error result and no generated value.
 - **SC-012**: Opening the app with a URL fragment such as `#mode=validate&package-identifier=ppn` activates the Validate tab with `PPN` preselected in both type selectors without any manual clicks; opening the app with no fragment, or with an unrecognized fragment, behaves exactly as it did before this increment.
 - **SC-013**: Generating a valid `PPN` with **EPL v2.3.x compatibility mode** enabled always shows a distinct caveat note beneath the success message; the note is absent whenever the mode is off or the generated result is invalid.
+- **SC-014**: Switching tabs or changing either identifier-type selector updates the URL fragment's `mode`/`package-identifier` keys to reflect the current UI state, without a page reload, without adding a browser-history entry, and without disturbing unrelated fragment keys already present.
 
 ## Assumptions
 
@@ -212,3 +225,4 @@ A user shares or bookmarks a link that opens the tool directly in a specific mod
 - A manually entered PZN-to-embed value is trusted only after passing the same structural validation as PZN Validate mode; no additional semantic, registry, or issuance verification is performed on it.
 - The URL fragment (`#...`) is parsed as query-string-style `key=value` pairs separated by `&`, mirroring `URLSearchParams` semantics; this is a presentation/deep-linking convenience only and introduces no new persistent state (Constitution Article II).
 - Anchor-derived preselection affects both the Generate and Validate type selectors simultaneously, since a single `package-identifier` value cannot address only one panel.
+- URL fragment write-back (FR-054–FR-057) is a convenience mirror of current UI state for shareable/bookmarkable links; it does not persist anything server-side or in storage (Constitution Article II), and uses a history-neutral update mechanism (e.g. `history.replaceState`) so back/forward navigation is not cluttered with a per-click entry.

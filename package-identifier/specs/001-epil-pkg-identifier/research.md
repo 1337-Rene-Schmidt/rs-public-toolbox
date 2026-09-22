@@ -306,15 +306,76 @@ Generate/PZN view. The request specifies a `key=value` fragment syntax: `#mode=g
   file is ever served from one, which is marginally more consistent with Article II (client-only
   computation), though both forms are equally valid for a `file://`-served single-file app.
 - *Writing the current mode/type back into `location.hash` as the user interacts (two-way binding)*:
-  rejected — not requested; the user only asked for the anchor to *drive* initial/changed state, not
-  for the app to rewrite the URL on every click. Adding write-back would be scope creep beyond
-  FR-050–FR-053.
+  rejected at the time — not requested; the user only asked for the anchor to *drive* initial/changed
+  state, not for the app to rewrite the URL on every click. This was revisited and implemented as a
+  separate increment (see "URL Anchor Write-Back" below) once explicitly requested.
 - *A single combined key (e.g. `#state=validate,ppn`)*: rejected — diverges from the two distinct
   keys (`mode`, `package-identifier`) the user explicitly specified.
 
 ## Open questions
 
 None remaining for this increment.
+
+---
+
+# Research: URL Anchor Write-Back (Bidirectional Sync)
+
+**Scope of this research pass**: FR-054–FR-057, SC-014 (mirroring the current tab/type UI state
+back into the URL fragment as the user interacts, so the address bar always reflects a shareable
+link to the current view)
+
+## Background
+
+The initial URL Anchor Deep Linking increment (FR-050–FR-053) deliberately made the fragment
+read-only, and its research explicitly deferred write-back as unrequested scope creep (see
+"Alternatives considered" above). The write-back behavior has now been explicitly requested: the
+URL fragment should update automatically when the user switches tabs or changes an identifier-type
+selector, so the current view is always a shareable/bookmarkable link without the user needing to
+construct one by hand.
+
+## Decision: Update the fragment via `history.replaceState`, triggered from the existing tab-click and type-change handlers
+
+**Decision**: Add a small helper, `writeAnchorState()`, that reads the currently active tab and the
+currently relevant type selector's value, builds a `URLSearchParams` from them (preserving any
+other existing keys already present in `location.hash`), and calls
+`history.replaceState(null, '', '#' + params.toString())`. Call this helper:
+1. At the end of the tab-button click handler (after activating the new tab), to update `mode`.
+2. At the end of `#gen-type`'s and `#val-type`'s `change` handlers, to update `package-identifier`
+   from whichever selector the user just changed.
+
+**Rationale**:
+- `history.replaceState` updates `location.hash`/the address bar without reloading the page and,
+  critically, without creating a new browser-history entry — satisfies FR-054/FR-055's explicit
+  "no reload, no new history entry" requirement and keeps the back button usable for actual
+  navigation rather than being filled with one entry per click.
+- `history.replaceState` does **not** fire a `hashchange` event (only assignment to
+  `location.hash` does), so calling it from `writeAnchorState()` cannot re-trigger
+  `applyAnchorState()` — this satisfies FR-057 (no read/write feedback loop) with no extra guard
+  flag needed.
+- Building the new hash from a `URLSearchParams` seeded with the *existing* parsed params (rather
+  than constructing a fresh one with only `mode`/`package-identifier`) satisfies FR-056: unrelated
+  keys already in the fragment are preserved untouched.
+- Reusing the existing tab-click and type-`change` handlers (rather than introducing a new
+  polling/observer mechanism) keeps write-back synchronous with the exact user action that caused
+  it, consistent with how `applyAnchorState()` itself reuses existing activation code paths rather
+  than introducing parallel state logic.
+
+**Alternatives considered**:
+- *`location.hash = ...` assignment*: rejected — this both creates a new history entry per change
+  (polluting back/forward navigation) and fires a `hashchange` event, which would immediately
+  re-invoke `applyAnchorState()` on every user-driven change; while idempotent (same tab/type
+  applied to itself), it is unnecessary re-work and a fragile pattern to reason about for FR-057.
+- *A `MutationObserver` or periodic poll watching the active tab/select values*: rejected —
+  needlessly indirect when the exact user actions that change tab/type are already handled by two
+  existing event listeners; direct calls at the end of those handlers are simpler and cheaper.
+- *Always rebuild the fragment from scratch (dropping unrecognized keys)*: rejected — would violate
+  FR-056 by silently discarding any other `key=value` pair a caller might have included in a shared
+  link (e.g. for a future increment or external tracking parameter unrelated to this app).
+
+## Open questions
+
+None remaining for this increment.
+
 
 
 

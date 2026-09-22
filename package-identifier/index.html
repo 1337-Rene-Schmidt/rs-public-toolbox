@@ -529,8 +529,71 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    // T063: write back mode on tab switch
+    writeAnchorState();
   });
 });
+
+// ── URL Anchor Deep Linking (T058–T060) ────────────────────
+const VALID_TYPES = ['pzn', 'ntin', 'gtin', 'ppn', 'pcid'];
+
+function applyAnchorState() {
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+
+  // T058: mode — activate the corresponding tab by reusing existing tab-button logic
+  const mode = params.get('mode');
+  if (mode) {
+    const normalizedMode = mode.toLowerCase();
+    if (normalizedMode === 'generate' || normalizedMode === 'validate') {
+      const targetBtn = document.querySelector('.tab-btn[data-tab="' + normalizedMode + '"]');
+      if (targetBtn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        targetBtn.classList.add('active');
+        document.getElementById('panel-' + targetBtn.dataset.tab).classList.add('active');
+      }
+    }
+  }
+
+  // T059: package-identifier — set both selects and re-run syncGenOptions()
+  const pkgId = params.get('package-identifier');
+  if (pkgId) {
+    const normalizedPkg = pkgId.toLowerCase();
+    if (VALID_TYPES.includes(normalizedPkg)) {
+      genTypeEl.value = normalizedPkg;
+      document.getElementById('val-type').value = normalizedPkg;
+      syncGenOptions();
+    }
+  }
+}
+
+// T060: hashchange listener (initial call moved to end of script to avoid TDZ)
+window.addEventListener('hashchange', applyAnchorState);
+
+// T062: Write-back — mirror current UI state back into the URL fragment
+function writeAnchorState() {
+  // Parse existing fragment to preserve unrelated keys
+  var params = new URLSearchParams(location.hash.replace(/^#/, ''));
+
+  // Read active tab from data-tab attribute
+  var activeBtn = document.querySelector('.tab-btn.active');
+  if (activeBtn) {
+    params.set('mode', activeBtn.dataset.tab);
+  }
+
+  // Read active type from whichever selector is on the active panel
+  var activePanel = document.querySelector('.panel.active');
+  if (activePanel) {
+    var typeEl = activePanel.querySelector('select');
+    if (typeEl) {
+      params.set('package-identifier', typeEl.value);
+    }
+  }
+
+  // Update address bar in place — replaceState does NOT fire hashchange
+  // (no read/write feedback loop)
+  window.history.replaceState(null, '', location.pathname + location.search + '#' + params.toString());
+}
 
 // ── Generate panel ────────────────────────────────────────
 const genTypeEl      = document.getElementById('gen-type');
@@ -557,8 +620,15 @@ function syncGenOptions() {
   }
 }
 
-genTypeEl.addEventListener('change', syncGenOptions);
+genTypeEl.addEventListener('change', () => {
+  syncGenOptions();
+  // T064: write back package-identifier on Generate type change
+  writeAnchorState();
+});
 syncGenOptions();
+
+// T065: write back package-identifier on Validate type change
+document.getElementById('val-type').addEventListener('change', writeAnchorState);
 
 document.getElementById('btn-generate').addEventListener('click', () => {
   const type        = genTypeEl.value;
@@ -686,6 +756,12 @@ function buildEmbeddedPznBlock(pzn) {
   }
   return el;
 }
+
+// T060: initial anchor-state application — MUST run after all const declarations
+// (genTypeEl, syncGenOptions, writeAnchorState) and listener registrations above,
+// otherwise the package-identifier branch hits a temporal-dead-zone ReferenceError
+// and aborts the entire script block.
+applyAnchorState();
 
 function showResult(prefix, success, value, label) {
   const resultEl = document.getElementById(prefix + '-result');
